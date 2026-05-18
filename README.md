@@ -68,12 +68,5 @@ export $(cat ~/thesis/tools/.env | xargs)
 
 Every model call gets logged to `~/thesis/logs/YYYY-MM-DD.jsonl`.
 One line per call: timestamp, model, prompt, response, cost.
-This is your AI-use disclosure trail for the thesis committee.
 
-## What this is not
 
-- Not an app
-- Not an orchestrator
-- Not a draft generator
-
-You run scripts manually. You write in Google Docs. You stay the author.
