@@ -1,5 +1,25 @@
 # research-assistance
 
+[![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![license](https://img.shields.io/badge/license-MIT-A3E635)](LICENSE)
+[![flask](https://img.shields.io/badge/web%20UI-Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![zotero](https://img.shields.io/badge/Zotero-RAG-CC2936?logo=zotero&logoColor=white)](https://www.zotero.org/)
+[![chromadb](https://img.shields.io/badge/vector%20store-ChromaDB-FF6B35)](https://www.trychroma.com/)
+[![litellm](https://img.shields.io/badge/LLM%20router-LiteLLM-7C3AED)](https://github.com/BerriAI/litellm)
+
+[![Claude](https://img.shields.io/badge/Claude-Opus%204.7%20%7C%20Sonnet%204.6%20%7C%20Haiku%204.5-D97757?logo=anthropic&logoColor=white)](https://www.anthropic.com/)
+[![Gemini](https://img.shields.io/badge/Gemini-2.5%20Pro%20%7C%20Flash-4285F4?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-Chat-1E40AF)](https://www.deepseek.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--5%20%7C%20GPT--5%20Mini-412991?logo=openai&logoColor=white)](https://openai.com/)
+
+[![discovery](https://img.shields.io/badge/discovery-OpenAlex%20%7C%20Semantic%20Scholar%20%7C%20Elicit-0EA5E9)](#)
+[![PaperQA2](https://img.shields.io/badge/evidence-PaperQA2-22C55E)](https://github.com/Future-House/paper-qa)
+
+[![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-555)](#install)
+[![Linux](https://img.shields.io/badge/Linux-supported-A3E635?logo=linux&logoColor=white)](#install)
+[![macOS](https://img.shields.io/badge/macOS-supported-A3E635?logo=apple&logoColor=white)](#install)
+[![Windows](https://img.shields.io/badge/Windows-supported-A3E635?logo=windows&logoColor=white)](#install)
+
 A CLI toolkit + web UI for master's and PhD thesis research. Index your Zotero PDF library, ask research questions with cited answers from your own papers, compare answers across multiple AI models (Claude, Gemini, DeepSeek, GPT/Codex), and save everything for later paraphrasing.
 
 ## What's here
