@@ -1,4 +1,4 @@
-# research-assistance
+# research-assistant
 
 [![python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-MIT-A3E635)](LICENSE)
