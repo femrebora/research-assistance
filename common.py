@@ -34,6 +34,7 @@ MODELS = {
     "deepseek": "deepseek/deepseek-chat",
     "gpt":      "openai/gpt-5",
     "gpt-mini": "openai/gpt-5-mini",
+    "codex":    "openai/gpt-5",
     # Local via Ollama; uncomment and adjust if you run a local model:
     # "local":  "ollama/llama3.3",
 }
@@ -49,6 +50,7 @@ _COST_PER_1M = {
     "deepseek": (0.27,   1.10),
     "gpt":      (1.25,  10.00),
     "gpt-mini": (0.15,   0.60),
+    "codex":    (1.25,  10.00),
 }
 
 MAX_RETRIES = 3

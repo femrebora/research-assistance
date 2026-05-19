@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Compare Models</h2>
+<p class="subtitle">Ask the same question to multiple AI models and compare their answers side-by-side.</p>
+
+<form method="POST" class="ask-form">
+    <textarea name="question" rows="3" placeholder="Your research question..." required>{{ question }}</textarea>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Models to compare</label>
+            <div class="checkbox-grid">
+                {% for alias in models %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="models" value="{{ alias }}"
+                        {% if alias in selected_models %}checked{% endif %}>
+                    {{ alias }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" name="use_rag" {% if use_rag %}checked{% endif %} {% if not index_exists %}disabled{% endif %}>
+            Use RAG context from indexed papers</label>
+            {% if not index_exists %}<p class="dim">(No index found — RAG unavailable)</p>{% endif %}
+        </div>
+        <div class="form-group">
+            <label for="save_name">Save comparison as</label>
+            <input type="text" name="save_name" id="save_name" placeholder="comparison name (optional)" value="{{ save_name }}">
+        </div>
+    </div>
+
+    <button type="submit" class="btn-primary">Compare</button>
+</form>
+
+{% if outcomes %}
+<div class="result-section">
+    <h3>Comparison Results</h3>
+    <div class="compare-grid">
+        {% for model_name, r in outcomes.items() %}
+        <div class="compare-card">
+            <div class="compare-card-header">
+                <span class="model-badge">{{ model_name }}</span>
+                <span class="token-info">{{ r.input_tokens }}/{{ r.output_tokens }} tokens</span>
+            </div>
+            <div class="compare-card-body">
+                {{ r.answer | safe_nl2br }}
+            </div>
+            {% if r.cost %}
+            <div class="compare-card-footer">${{ "%.4f"|format(r.cost) }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

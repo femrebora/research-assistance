@@ -18,7 +18,7 @@ chmod +x ./*.py
 
 if [ ! -f .env ]; then
     echo "→ Creating .env from template (you must edit it with your keys)"
-    cp .env.example .env
+    cp env.example .env
 fi
 
 echo ""

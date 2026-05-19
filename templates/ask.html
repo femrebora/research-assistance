@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ask a Research Question</h2>
+
+{% if not index_exists %}
+<div class="warning-box">
+    No index found. <a href="/index">Index your Zotero PDFs</a> before asking questions.
+</div>
+{% endif %}
+
+<form method="POST" class="ask-form">
+    <textarea name="question" rows="3" placeholder="What are the main approaches to filtering NUMT in clinical mtDNA sequencing?" required>{{ question }}</textarea>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label for="model">Model</label>
+            <select name="model" id="model">
+                {% for alias in models %}
+                <option value="{{ alias }}" {% if alias == model %}selected{% endif %}>{{ alias }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="k">Chunks retrieved (k)</label>
+            <input type="range" name="k" id="k" min="5" max="50" value="{{ k }}" oninput="document.getElementById('k-val').textContent = this.value">
+            <span id="k-val">{{ k }}</span>
+        </div>
+        <div class="form-group">
+            <label for="threshold">Similarity threshold</label>
+            <input type="range" name="threshold" id="threshold" min="0.1" max="0.9" step="0.05" value="{{ threshold }}" oninput="document.getElementById('t-val').textContent = this.value">
+            <span id="t-val">{{ threshold }}</span>
+        </div>
+        <div class="form-group">
+            <label for="save_name">Save session as</label>
+            <input type="text" name="save_name" id="save_name" placeholder="session name (optional)" value="{{ save_name }}">
+        </div>
+    </div>
+
+    <button type="submit" class="btn-primary">Ask Question</button>
+</form>
+
+{% if result %}
+<div class="result-section">
+    <div class="result-header">
+        <span class="model-badge">{{ result.model }}</span>
+        {% if result.input_tokens %}
+        <span class="token-info">{{ result.input_tokens }} in / {{ result.output_tokens }} out | ${{ "%.4f"|format(result.cost) }}</span>
+        {% endif %}
+    </div>
+
+    <div class="answer-box">
+        {{ result.answer | safe_nl2br }}
+    </div>
+
+    {% if result.sources %}
+    <div class="sources-box">
+        <h4>Sources Consulted</h4>
+        <ul class="source-list">
+        {% for s in result.sources %}
+        <li>
+            <code class="citekey">@{{ s.citekey }}</code>
+            <em>"{{ s.title }}"</em>
+            {% if s.year %}({{ s.year }}){% endif %}
+            <span class="dim">— relevance: {{ "%.2f"|format(s.similarity) }}</span>
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 logs/
+chroma_db/
+research_sessions/
+.pytest_cache/
+__pycache__/

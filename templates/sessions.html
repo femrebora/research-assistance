@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Research Sessions</h2>
+
+{% if session_content %}
+<div class="result-section">
+    <div class="result-header">
+        <h3>{{ session_name }}</h3>
+        <form action="/sessions/{{ session_name }}/delete" method="POST" style="display:inline" onsubmit="return confirm('Delete this session?')">
+            <button type="submit" class="btn-danger btn-sm">Delete</button>
+        </form>
+    </div>
+    <div class="session-content">
+        {{ session_content | safe }}
+    </div>
+    <p><a href="/sessions">← Back to all sessions</a></p>
+</div>
+{% else %}
+    {% if sessions %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Name</th><th>Questions</th><th>Last Question</th><th>Modified</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for s in sessions %}
+        <tr>
+            <td><a href="/sessions/{{ s.name }}"><strong>{{ s.name }}</strong></a></td>
+            <td>{{ s.questions }}</td>
+            <td class="dim">{{ s.last_question[:60] }}{% if s.last_question|length > 60 %}...{% endif %}</td>
+            <td class="dim">{{ s.modified[:10] }}</td>
+            <td>
+                <form action="/sessions/{{ s.name }}/delete" method="POST" onsubmit="return confirm('Delete {{ s.name }}?')">
+                    <button type="submit" class="btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="dim">No sessions yet. <a href="/ask">Ask a question</a> and save it to create a session.</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

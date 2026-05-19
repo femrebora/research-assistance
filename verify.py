@@ -23,8 +23,10 @@ console = Console()
 
 # Matches pandoc citation syntax: [@citekey], [@citekey2024], [-@citekey],
 # [@citekey; @citekey2], and bare @citekey references.
+# Bare @key is only matched when not preceded by a word char, '.', or '/',
+# so emails (me@example.com) and paths don't get flagged as citations.
 _CITEKEY_CHAR = r"[a-zA-Z][a-zA-Z0-9_:-]*"
-CITE_RE = re.compile(rf"(?<!\[)@{_CITEKEY_CHAR}|\[-?@{_CITEKEY_CHAR}(?:;\s*@{_CITEKEY_CHAR})*\]")
+CITE_RE = re.compile(rf"(?<![\w./])@{_CITEKEY_CHAR}|\[-?@{_CITEKEY_CHAR}(?:;\s*@{_CITEKEY_CHAR})*\]")
 
 # BibTeX entry: @article{citekey, ...
 BIBKEY_RE = re.compile(r"@\w+\s*\{\s*([^,\s]+)\s*,", re.MULTILINE)

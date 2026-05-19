@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+
+<!-- Index Status -->
+<div class="card">
+    <h3>Vector Index</h3>
+    {% if index.exists %}
+        <div class="stats-grid">
+            <div class="stat">
+                <span class="stat-value">{{ index.documents }}</span>
+                <span class="stat-label">Documents</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ index.chunks }}</span>
+                <span class="stat-label">Chunks</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ index.embedding_model.split('/')[-1] }}</span>
+                <span class="stat-label">Embeddings</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ index.last_indexed[:10] if index.last_indexed != 'never' else 'never' }}</span>
+                <span class="stat-label">Last Indexed</span>
+            </div>
+        </div>
+    {% else %}
+        <p class="warning">No index found. <a href="/index">Index your Zotero PDFs first.</a></p>
+    {% endif %}
+</div>
+
+<!-- Quick Ask -->
+<div class="card">
+    <h3>Quick Ask</h3>
+    <form action="/ask" method="POST" class="quick-ask-form">
+        <input type="text" name="question" placeholder="Ask a research question against your indexed papers..." required>
+        <div class="form-row">
+            <select name="model">
+                {% for alias in models %}
+                <option value="{{ alias }}" {% if alias == 'claude' %}selected{% endif %}>{{ alias }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Ask</button>
+        </div>
+    </form>
+</div>
+
+<!-- Indexing Controls -->
+{% if tab == "index" %}
+<div class="card">
+    <h3>Index Management</h3>
+    <div id="index-status">
+        {% if index_state and index_state.running %}
+            <p class="info">Indexing in progress: {{ index_state.status }}</p>
+            <div class="progress-bar"><div class="progress-fill" id="progress-bar-fill" style="width: 0%"></div></div>
+        {% else %}
+            {% if index_state and index_state.stats %}
+                <div class="result-box">
+                    <p>Last index result:</p>
+                    <ul>
+                        <li>{{ index_state.stats.indexed }} documents indexed</li>
+                        <li>{{ index_state.stats.total_chunks }} chunks created</li>
+                        <li>{{ index_state.stats.skipped }} skipped, {{ index_state.stats.failed }} failed</li>
+                    </ul>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <form action="/index/start" method="POST" class="index-form" onsubmit="startIndexing(event)">
+        <div class="form-row">
+            <input type="text" name="collection" placeholder="Collection (optional)">
+            <input type="number" name="limit" placeholder="Limit (optional)" min="1">
+        </div>
+        <div class="form-row">
+            <label><input type="checkbox" name="force"> Force re-index</label>
+            <button type="submit" id="index-btn">Start Indexing</button>
+        </div>
+    </form>
+</div>
+
+<script>
+async function startIndexing(e) {
+    e.preventDefault();
+    const btn = document.getElementById("index-btn");
+    btn.disabled = true;
+    btn.textContent = "Starting...";
+
+    const form = e.target;
+    const formData = new FormData(form);
+    try {
+        await fetch("/index/start", { method: "POST", body: formData });
+        pollIndexStatus();
+    } catch(err) {
+        btn.disabled = false;
+        btn.textContent = "Start Indexing";
+    }
+}
+
+async function pollIndexStatus() {
+    const btn = document.getElementById("index-btn");
+    try {
+        while (true) {
+            const resp = await fetch("/index/status");
+            const data = await resp.json();
+            if (data.status === "complete") {
+                btn.disabled = false;
+                btn.textContent = "Start Indexing";
+                document.getElementById("index-status").innerHTML =
+                    "<p class='success'>Indexing complete! " +
+                    data.stats.indexed + " documents indexed, " +
+                    data.stats.total_chunks + " chunks.</p>" +
+                    "<p><a href='/'>Refresh dashboard</a></p>";
+                return;
+            }
+            if (data.status === "error") {
+                btn.disabled = false;
+                btn.textContent = "Start Indexing";
+                document.getElementById("index-status").innerHTML =
+                    "<p class='error'>Error: " + data.error + "</p>";
+                return;
+            }
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    } catch(err) {
+        btn.disabled = false;
+        btn.textContent = "Start Indexing";
+    }
+}
+</script>
+{% endif %}
+
+<!-- Recent Sessions -->
+<div class="card">
+    <h3>Recent Sessions</h3>
+    {% if sessions %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Name</th><th>Questions</th><th>Last Question</th></tr>
+        </thead>
+        <tbody>
+        {% for s in sessions %}
+        <tr>
+            <td><a href="/sessions/{{ s.name }}">{{ s.name }}</a></td>
+            <td>{{ s.questions }}</td>
+            <td class="dim">{{ s.last_question[:60] }}{% if s.last_question|length > 60 %}...{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="dim">No sessions yet. Ask a question and save it!</p>
+    {% endif %}
+</div>
+{% endblock %}
