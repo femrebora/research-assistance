@@ -38,7 +38,7 @@ A CLI toolkit + web UI for master's and PhD thesis research. Index your Zotero P
 ### 1. Clone and set up
 
 ```bash
-git clone <repo-url> research-assistant
+git clone https://github.com/femrebora/research-assistant
 cd research-assistant
 ```
 
