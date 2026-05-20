@@ -90,29 +90,43 @@ def _collect_agent_calls(state: dict, delta: dict) -> dict:
     return merged
 
 
+def _log(agent: str, msg: str = "") -> None:
+    import sys
+    print(f"  [{agent}] {msg}", file=sys.stderr, flush=True)
+
+
 def build_graph() -> StateGraph:
     """Build and compile the paper generation state machine."""
     builder = StateGraph(PaperState)
 
     def code_analyst_wrapper(state: dict) -> dict:
+        _log("Code Analyst (Gemini)", "analyzing codebase...")
         return _collect_agent_calls(state, run_code_analyst(state))
 
     def writer_wrapper(state: dict) -> dict:
+        _log("Writer (DeepSeek)", "generating paper draft...")
         return _collect_agent_calls(state, run_writer(state))
 
     def assessor_wrapper(state: dict) -> dict:
+        _log("Assessor (Claude)", "evaluating draft...")
         return _collect_agent_calls(state, run_assessor(state))
 
     def rewriter_wrapper(state: dict) -> dict:
+        n = state.get("text_rewrite_count", 0) + 1
+        _log(f"Rewriter (Claude)", f"revision #{n}...")
         return _collect_agent_calls(state, run_rewriter(state))
 
     def plagiarism_wrapper(state: dict) -> dict:
+        _log("Plagiarism Check (DeepSeek)", "checking originality...")
         return _collect_agent_calls(state, run_plagiarism_check(state))
 
     def figure_gen_wrapper(state: dict) -> dict:
+        n = state.get("figure_rewrite_count", 0) + 1
+        _log(f"Figure Gen (Gemini)", f"generating figures (#{n})...")
         return _collect_agent_calls(state, run_figure_gen(state))
 
     def figure_supervisor_wrapper(state: dict) -> dict:
+        _log("Figure Supervisor (Claude)", "reviewing figures...")
         return _collect_agent_calls(state, run_figure_supervisor(state))
 
     builder.add_node("code_analyst", code_analyst_wrapper)
