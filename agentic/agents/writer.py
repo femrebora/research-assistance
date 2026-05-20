@@ -12,9 +12,10 @@ def run_writer(state: dict) -> dict:
         style_guide=state.get("style_guide", ""),
         user_summary=state.get("user_summary", ""),
         rag_context=state.get("rag_context", ""),
+        ai_tells=state.get("ai_tells"),
     )
 
-    result = call_agent(prompt=prompt, model="deepseek", system=SYSTEM, temperature=0.4)
+    result = call_agent(prompt=prompt, model="deepseek", system=SYSTEM, temperature=0.6)
 
     return {
         "draft": result["text"],
