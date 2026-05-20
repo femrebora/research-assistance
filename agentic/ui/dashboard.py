@@ -137,6 +137,8 @@ st.markdown('<div class="tagline">DROP CODE → PROMPT → PAPER</div>', unsafe_
 
 # Input Card
 with st.container():
+    repo_url = ""
+    uploaded = None
     col1, col2 = st.columns([3, 1])
     with col1:
         source_type = st.radio("Source", ["GitHub URL", "ZIP Upload"], horizontal=True, label_visibility="collapsed")
