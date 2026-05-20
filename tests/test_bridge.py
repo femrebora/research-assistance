@@ -13,40 +13,42 @@ from agentic.bridge import call_agent, load_cache, save_cache
 
 
 class TestCallAgent:
-    @patch("agentic.bridge.ask_model")
-    def test_call_agent_returns_text(self, mock_ask):
-        mock_ask.return_value = {
-            "text": "Hello from model",
-            "model": "test/model",
-            "input_tokens": 10,
-            "output_tokens": 5,
-            "cost": 0.001,
-        }
+    @patch("agentic.bridge.subprocess.run")
+    def test_call_agent_returns_text_claude(self, mock_run):
+        mock_run.return_value = type("R", (), {"stdout": "Hello from Claude", "stderr": ""})()
         result = call_agent(
             prompt="Say hello",
-            model="gemini",
-            system="You are helpful.",
-            temperature=0.3,
-        )
-        assert result["text"] == "Hello from model"
-        assert result["model"] == "test/model"
-        mock_ask.assert_called_once_with(
-            prompt="Say hello",
-            model="gemini",
-            system="You are helpful.",
-            temperature=0.3,
-        )
-
-    @patch("agentic.bridge.ask_model")
-    def test_call_agent_defaults(self, mock_ask):
-        mock_ask.return_value = {"text": "ok", "model": "x", "input_tokens": 1, "output_tokens": 1, "cost": 0}
-        call_agent(prompt="test")
-        mock_ask.assert_called_once_with(
-            prompt="test",
             model="claude",
-            system=None,
-            temperature=0.3,
+            system="You are helpful.",
         )
+        assert result["text"] == "Hello from Claude"
+        assert result["model"] == "claude"
+
+    @patch("agentic.bridge.subprocess.run")
+    def test_call_agent_cli_route_gemini(self, mock_run):
+        mock_run.return_value = type("R", (), {"stdout": "Hello from Gemini", "stderr": ""})()
+        result = call_agent(prompt="Say hello", model="gemini")
+        assert result["model"] == "gemini"
+
+    @patch("agentic.bridge.subprocess.run")
+    def test_call_agent_cli_route_deepseek(self, mock_run):
+        mock_run.return_value = type("R", (), {"stdout": "Hello from DeepSeek", "stderr": ""})()
+        result = call_agent(prompt="Say hello", model="deepseek")
+        assert result["model"] == "deepseek"
+
+    @patch("agentic.bridge.subprocess.run")
+    def test_call_agent_includes_system_prompt(self, mock_run):
+        mock_run.return_value = type("R", (), {"stdout": "OK", "stderr": ""})()
+        call_agent(prompt="What is 2+2?", model="claude", system="Be concise.")
+        # The command string is the first positional argument to subprocess.run
+        cmd_string = mock_run.call_args[0][0] if mock_run.call_args[0] else ""
+        assert "Be concise" in cmd_string
+        assert mock_run.call_args[1]["shell"] is True
+
+    def test_call_agent_unknown_model_raises(self):
+        import pytest
+        with pytest.raises(ValueError, match="Unknown model"):
+            call_agent(prompt="test", model="nonexistent")
 
 
 class TestCacheOperations:
