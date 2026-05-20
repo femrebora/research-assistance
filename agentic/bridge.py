@@ -1,16 +1,19 @@
 """Bridge layer — routes agent calls to local CLI tools and manages caches.
 
-Uses the user's installed CLIs instead of API calls:
-  - Claude models → claude CLI (Claude Code)
-  - DeepSeek models → use-deepseek bash function + claude CLI
-  - Gemini models → gemini CLI
+Claude → claude CLI (--bare, JSON output, works correctly).
+DeepSeek → direct HTTP API (OpenAI-compatible /v1/chat/completions).
+Gemini → gemini CLI (--approval-mode plan, no tool execution).
 """
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import subprocess
+import sys
 import time
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Optional
 
@@ -18,7 +21,29 @@ THESIS_ROOT = Path(os.getenv("THESIS_ROOT", str(Path.home() / "thesis")))
 CACHE_DIR = THESIS_ROOT / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-TIMEOUT = 300  # seconds per agent call
+TIMEOUT = 600  # seconds per agent call
+
+# DeepSeek API config
+DEEPSEEK_API_KEY = os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+DEEPSEEK_BASE = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-chat"  # v3-equivalent, fast and cheap
+
+# Gemini API config (optional fallback — use CLI for now)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+FALLBACK_CHAIN = ["deepseek", "gemini"]
+
+MIN_TEXT_LENGTH = 50
+ERROR_MARKERS = ("(timed out)", "(error:", "(no output)", "PermissionError",
+                 "insufficient_quota", "rate_limit", "overloaded")
+
+
+def _is_broken(text: str) -> bool:
+    """Check if a model response is broken/empty/short enough to warrant fallback."""
+    if not text or len(text) < MIN_TEXT_LENGTH:
+        return True
+    low = text.lower()
+    return any(m.lower() in low for m in ERROR_MARKERS)
 
 
 def call_agent(
@@ -26,31 +51,64 @@ def call_agent(
     model: str = "claude",
     system: Optional[str] = None,
     temperature: float = 0.3,
+    fallback: list[str] | bool | None = None,
 ) -> dict:
-    """Call a local AI CLI and return {text, model, input_tokens, output_tokens, cost}.
+    """Call an AI model and return {text, model, input_tokens, output_tokens, cost}.
 
-    Routes to the appropriate CLI based on model alias:
-      claude, sonnet, haiku → claude -p
-      deepseek              → use-deepseek && claude -p
-      gemini, flash         → gemini -p
+    Claude → claude CLI, DeepSeek → direct API, Gemini → gemini CLI.
+    Falls back when primary response is broken/empty/timed-out.
     """
-    full_prompt = prompt
-    if system:
-        full_prompt = f"System instructions: {system}\n\n---\n\nUser query: {prompt}"
+    primary = _dispatch(prompt, model, system)
+    if not _is_broken(primary.get("text", "")):
+        return primary
 
+    chain = FALLBACK_CHAIN if fallback is True else (fallback if isinstance(fallback, list) else [])
+    for fb_model in chain:
+        if fb_model == model:
+            continue
+        print(f"  ⚠ {model} response broken ({len(primary.get('text',''))} chars), "
+              f"falling back to {fb_model}...", file=sys.stderr)
+        fb_result = _dispatch(prompt, fb_model, system)
+        if not _is_broken(fb_result.get("text", "")):
+            fb_result["fallback_from"] = model
+            return fb_result
+
+    return primary
+
+
+def _dispatch(prompt: str, model: str, system: Optional[str] = None) -> dict:
+    """Route to the right backend."""
     if model in ("claude", "sonnet", "haiku"):
-        return _call_claude(full_prompt, model)
+        full = f"System instructions: {system}\n\n---\n\nUser query: {prompt}" if system else prompt
+        return _call_claude(full, model)
     elif model == "deepseek":
-        return _call_deepseek(full_prompt)
+        return _call_deepseek(prompt, system)
     elif model in ("gemini", "flash"):
-        return _call_gemini(full_prompt)
+        full = f"System instructions: {system}\n\n---\n\nUser query: {prompt}" if system else prompt
+        return _call_gemini(full)
     else:
-        raise ValueError(f"Unknown model '{model}'. Available: claude, sonnet, haiku, deepseek, gemini, flash")
+        raise ValueError(
+            f"Unknown model '{model}'. "
+            f"Available: claude, sonnet, haiku, deepseek, gemini, flash")
+
+
+def _parse_claude_json(stdout: str) -> dict:
+    """Parse Claude CLI JSON output. Returns {text, input_tokens, output_tokens, cost}."""
+    try:
+        data = json.loads(stdout)
+        return {
+            "text": data.get("result", stdout),
+            "input_tokens": data.get("usage", {}).get("input_tokens"),
+            "output_tokens": data.get("usage", {}).get("output_tokens"),
+            "cost": data.get("total_cost_usd"),
+        }
+    except (json.JSONDecodeError, TypeError):
+        return {"text": stdout, "input_tokens": None, "output_tokens": None, "cost": None}
 
 
 def _call_claude(prompt: str, model: str) -> dict:
     """Call Claude via the `claude` CLI."""
-    cmd = f"claude -p {shlex.quote(prompt)} --bare --allowedTools '' --output-format json"
+    cmd = f"claude -p {shlex.quote(prompt)} --bare --output-format json"
     try:
         result = subprocess.run(
             cmd,
@@ -60,58 +118,75 @@ def _call_claude(prompt: str, model: str) -> dict:
             timeout=TIMEOUT,
             env=os.environ.copy(),
         )
-        output = result.stdout.strip()
-        if not output:
-            output = result.stderr.strip() or "(no output)"
+        stdout = result.stdout.strip()
+        if not stdout:
+            stdout = result.stderr.strip() or "(no output)"
+            parsed = {"text": stdout, "input_tokens": None, "output_tokens": None, "cost": None}
+        else:
+            parsed = _parse_claude_json(stdout)
     except subprocess.TimeoutExpired:
-        output = "(timed out)"
+        parsed = {"text": "(timed out)", "input_tokens": None, "output_tokens": None, "cost": None}
     except Exception as e:
-        output = f"(error: {e})"
+        parsed = {"text": f"(error: {e})", "input_tokens": None, "output_tokens": None, "cost": None}
 
-    return {
-        "text": output,
-        "model": model,
-        "input_tokens": None,
-        "output_tokens": None,
-        "cost": None,
-    }
+    return {"text": parsed["text"], "model": model,
+            "input_tokens": parsed["input_tokens"], "output_tokens": parsed["output_tokens"],
+            "cost": parsed["cost"]}
 
 
-def _call_deepseek(prompt: str) -> dict:
-    """Call DeepSeek by sourcing use-deepseek before invoking claude."""
-    cmd = (
-        f"bash -c 'source ~/.bashrc; use-deepseek; "
-        f"claude -p {shlex.quote(prompt)} --bare --allowedTools \"\"'"
+def _call_deepseek(prompt: str, system: Optional[str] = None) -> dict:
+    """Call DeepSeek via direct OpenAI-compatible API (bypasses CLI coding context)."""
+    if not DEEPSEEK_API_KEY:
+        return {"text": "(error: no DeepSeek API key — set ANTHROPIC_AUTH_TOKEN)",
+                "model": "deepseek", "input_tokens": None, "output_tokens": None, "cost": None}
+
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    body = json.dumps({
+        "model": DEEPSEEK_MODEL,
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 8000,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{DEEPSEEK_BASE}/v1/chat/completions",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
     )
-    try:
-        result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=TIMEOUT,
-            env=os.environ.copy(),
-        )
-        output = result.stdout.strip()
-        if not output:
-            output = result.stderr.strip() or "(no output)"
-    except subprocess.TimeoutExpired:
-        output = "(timed out)"
-    except Exception as e:
-        output = f"(error: {e})"
 
-    return {
-        "text": output,
-        "model": "deepseek",
-        "input_tokens": None,
-        "output_tokens": None,
-        "cost": None,
-    }
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        choice = data["choices"][0]
+        text = choice["message"]["content"]
+        usage = data.get("usage", {})
+        return {
+            "text": text,
+            "model": data.get("model", "deepseek-chat"),
+            "input_tokens": usage.get("prompt_tokens"),
+            "output_tokens": usage.get("completion_tokens"),
+            "cost": None,  # DeepSeek pricing varies
+        }
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return {"text": f"(HTTP {e.code}: {body[:300]})", "model": "deepseek",
+                "input_tokens": None, "output_tokens": None, "cost": None}
+    except Exception as e:
+        return {"text": f"(error: {e})", "model": "deepseek",
+                "input_tokens": None, "output_tokens": None, "cost": None}
 
 
 def _call_gemini(prompt: str) -> dict:
     """Call Gemini via the `gemini` CLI."""
-    cmd = f"gemini -p {shlex.quote(prompt)} -o text -y --skip-trust"
+    cmd = f"gemini -p {shlex.quote(prompt)} --approval-mode plan --skip-trust"
     try:
         result = subprocess.run(
             cmd,
@@ -121,7 +196,6 @@ def _call_gemini(prompt: str) -> dict:
             timeout=TIMEOUT,
             env=os.environ.copy(),
         )
-        # Gemini prints warnings to stderr; the actual response is on stdout
         output = result.stdout.strip()
         if not output:
             output = result.stderr.strip() or "(no output)"
@@ -130,13 +204,8 @@ def _call_gemini(prompt: str) -> dict:
     except Exception as e:
         output = f"(error: {e})"
 
-    return {
-        "text": output,
-        "model": "gemini",
-        "input_tokens": None,
-        "output_tokens": None,
-        "cost": None,
-    }
+    return {"text": output, "model": "gemini",
+            "input_tokens": None, "output_tokens": None, "cost": None}
 
 
 def load_cache(path: str) -> Optional[str]:
