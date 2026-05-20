@@ -17,7 +17,7 @@ def inject_background():
     """Inject animated particle background via custom HTML/JS."""
     components.html("""
     <style>
-      body { margin:0; overflow:hidden; background:#0a0a0f; }
+      html, body { margin:0; padding:0; overflow:hidden; background:#0a0a0f; width:100vw; height:100vh; }
     </style>
     <canvas id="bg-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;"></canvas>
     <div style="position:fixed;inset:0;z-index:998;pointer-events:none;
@@ -87,7 +87,7 @@ def inject_background():
       if(st.life<=0||st.x>c.width+50||st.y>c.height+50||st.x<-50)stars.splice(s,1);}
       requestAnimationFrame(anim);}anim();
     </script>
-    """, height=600)
+    """, height=200)
 
 
 inject_background()
@@ -103,7 +103,19 @@ st.markdown("""
   [data-testid="stHeader"] { background: transparent !important; }
   .main .block-container { background: transparent !important; padding-top:2rem !important; }
   section[data-testid="stSidebar"] { display: none; }
-  iframe { border:none !important; position:fixed !important; inset:0 !important; z-index:-1 !important; width:100vw !important; height:100vh !important; }
+
+  /* Force the background iframe to cover the full viewport */
+  div[data-testid="stIFrame"] {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+  div[data-testid="stIFrame"] iframe {
+    width: 100vw !important;
+    height: 100vh !important;
+    border: none !important;
+  }
   .logo {
     text-align:center; font-size:1.4rem; font-weight:600; letter-spacing:0.15em;
     background: linear-gradient(135deg, #ff6b9d, #b083ff);
