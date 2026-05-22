@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
+import subprocess
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,9 +38,33 @@ MODELS = {
     "gpt":      "openai/gpt-5",
     "gpt-mini": "openai/gpt-5-mini",
     "codex":    "openai/gpt-5",
-    # Local via Ollama; uncomment and adjust if you run a local model:
-    # "local":  "ollama/llama3.3",
+    # Local via Ollama (LiteLLM-managed). Override the model name with OLLAMA_MODEL.
+    # Examples: ollama/llama3.3, ollama/qwen2.5, ollama/mistral-nemo.
+    "local":    os.getenv("OLLAMA_MODEL", "ollama/llama3.3"),
 }
+
+# ── CLI providers ────────────────────────────────────────────────────────────
+#
+# These aliases shell out to the model's own CLI tool instead of calling its
+# API. Use them when you want to bill against a CLI subscription (Claude Code,
+# Gemini CLI, Codex CLI) or run a local model via `ollama run`.
+#
+# The command template is a shell-quoted string. The prompt is appended as the
+# final positional argument when the call is made. Override the binary or flags
+# with the corresponding `*_CLI_CMD` environment variable in .env.
+#
+# Cost is recorded as $0 for CLI calls because billing happens at the
+# subscription/local-compute layer, not per-token.
+CLI_PROVIDERS = {
+    "claude-cli": os.getenv("CLAUDE_CLI_CMD", "claude -p"),
+    "gemini-cli": os.getenv("GEMINI_CLI_CMD", "gemini -p"),
+    "codex-cli":  os.getenv("CODEX_CLI_CMD",  "codex exec"),
+    "ollama-cli": os.getenv("OLLAMA_CLI_CMD", "ollama run llama3.3"),
+}
+
+# Merge CLI aliases into MODELS so every existing click.Choice picks them up
+# automatically (ask.py, compare.py, critique.py, paraphrase.py, etc.).
+MODELS.update({alias: f"cli:{cmd}" for alias, cmd in CLI_PROVIDERS.items()})
 
 # Approximate cost per 1M tokens (input, output) for display.
 # These are estimates — check provider pricing pages for exact numbers.
@@ -51,7 +78,14 @@ _COST_PER_1M = {
     "gpt":      (1.25,  10.00),
     "gpt-mini": (0.15,   0.60),
     "codex":    (1.25,  10.00),
+    "local":    (0.0,    0.0),
+    "claude-cli": (0.0,  0.0),
+    "gemini-cli": (0.0,  0.0),
+    "codex-cli":  (0.0,  0.0),
+    "ollama-cli": (0.0,  0.0),
 }
+
+CLI_TIMEOUT = int(os.getenv("CLI_TIMEOUT", "600"))
 
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2.0  # seconds, doubles each retry
@@ -77,6 +111,10 @@ def ask_model(
         raise ValueError(
             f"Unknown model '{model}'. Available: {', '.join(MODELS.keys())}"
         )
+
+    value = MODELS[model]
+    if value.startswith("cli:"):
+        return _ask_via_cli(prompt, model, value[4:], system=system)
 
     messages = []
     if system:
@@ -120,6 +158,7 @@ def ask_model(
         "timestamp": datetime.now(tz=timezone.utc).isoformat(),
         "model_alias": model,
         "model_full": MODELS[model],
+        "via": "api",
         "system": system,
         "prompt": prompt,
         "response": text,
@@ -137,6 +176,98 @@ def ask_model(
         "output_tokens": record["output_tokens"],
         "cost": cost,
     }
+
+
+def _ask_via_cli(
+    prompt: str,
+    model: str,
+    cmd_str: str,
+    system: Optional[str] = None,
+    timeout: int = CLI_TIMEOUT,
+) -> dict:
+    """Run a CLI tool with the prompt as its final positional argument.
+
+    CLIs do not expose a standardized system-prompt slot, so any `system`
+    string is prepended to the user prompt as a labeled header. Cost is
+    recorded as $0 (subscription/local billing happens outside this layer).
+    """
+    cmd_parts = shlex.split(cmd_str)
+    if not cmd_parts:
+        raise RuntimeError(f"Empty CLI command for {model}")
+    binary = cmd_parts[0]
+
+    full_prompt = (
+        f"[System]\n{system}\n\n[User]\n{prompt}" if system else prompt
+    )
+    full_cmd = cmd_parts + [full_prompt]
+
+    try:
+        proc = subprocess.run(  # noqa: S603 — no shell=True, args are a list
+            full_cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except FileNotFoundError as e:
+        env_var = model.upper().replace("-", "_") + "_CMD"
+        raise RuntimeError(
+            f"CLI binary '{binary}' not found in PATH. Install it, or override "
+            f"the command with the {env_var} environment variable."
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"CLI {binary} timed out after {timeout}s.") from e
+
+    if proc.returncode != 0:
+        stderr_tail = (proc.stderr or "").strip()[-500:]
+        raise RuntimeError(
+            f"CLI {binary} failed (exit {proc.returncode}): {stderr_tail}"
+        )
+
+    text = (proc.stdout or "").strip()
+
+    record = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "model_alias": model,
+        "model_full": cmd_str,
+        "via": "cli",
+        "system": system,
+        "prompt": prompt,
+        "response": text,
+        "input_tokens": None,
+        "output_tokens": None,
+    }
+    _log(record)
+
+    return {
+        "text": text,
+        "model": cmd_str,
+        "input_tokens": None,
+        "output_tokens": None,
+        "cost": 0.0,
+    }
+
+
+def open_in_editor(initial_text: str, suffix: str = ".md") -> str:
+    """Open $EDITOR with `initial_text` pre-populated; return the saved content.
+
+    Falls back to `nano` if $EDITOR is unset. Used by interactive review loops
+    in paraphrase.py / critic.py / pipeline.py to let the user edit a model
+    output before the next stage consumes it.
+    """
+    editor = os.getenv("EDITOR") or os.getenv("VISUAL") or "nano"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False, encoding="utf-8") as tf:
+        tf.write(initial_text)
+        tmp_path = tf.name
+    try:
+        subprocess.call(shlex.split(editor) + [tmp_path])  # noqa: S603
+        with open(tmp_path, encoding="utf-8") as f:
+            return f.read()
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _estimate_cost(alias: str, in_tokens: Optional[int], out_tokens: Optional[int]) -> Optional[float]:

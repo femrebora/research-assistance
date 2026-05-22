@@ -784,7 +784,9 @@ def compare_research_question(
 
 def _safe_session_name(name: str) -> str:
     """Sanitize a session name to prevent path traversal."""
-    return name.lstrip("/").replace("\\", "/").replace("..", "").rstrip("/")
+    sanitized = name.lstrip("/").replace("\\", "/").rstrip("/")
+    parts = [p for p in sanitized.split("/") if p not in ("", ".", "..")]
+    return "/".join(parts)
 
 
 def save_session(

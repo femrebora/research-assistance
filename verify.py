@@ -26,7 +26,18 @@ console = Console()
 # Bare @key is only matched when not preceded by a word char, '.', or '/',
 # so emails (me@example.com) and paths don't get flagged as citations.
 _CITEKEY_CHAR = r"[a-zA-Z][a-zA-Z0-9_:-]*"
-CITE_RE = re.compile(rf"(?<![\w./])@{_CITEKEY_CHAR}|\[-?@{_CITEKEY_CHAR}(?:;\s*@{_CITEKEY_CHAR})*\]")
+
+# A single citation unit inside brackets, with an optional Pandoc locator:
+#   @citekey                  simple citation
+#   @citekey, p. 42           citation with locator
+#   -@citekey, ch. 3          suppressed-author with locator
+# The locator text may contain commas (pp. 33-35, 38-39) but not @, ;, [, or ].
+_CITE_UNIT = rf"-?@{_CITEKEY_CHAR}(?:,\s*[^@;\[\]]+)?"
+
+CITE_RE = re.compile(
+    rf"(?<![\w./])@{_CITEKEY_CHAR}"
+    rf"|\[{_CITE_UNIT}(?:\s*;\s*{_CITE_UNIT})*\]"
+)
 
 # BibTeX entry: @article{citekey, ...
 BIBKEY_RE = re.compile(r"@\w+\s*\{\s*([^,\s]+)\s*,", re.MULTILINE)

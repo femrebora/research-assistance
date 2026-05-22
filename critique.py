@@ -85,7 +85,14 @@ my paragraph. End your output with one line:
 def _number_sentences(text: str) -> str:
     """Split into sentences and number them, one per line."""
     import re
-    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    # Split on sentence-ending punctuation, gracefully handling closing
+    # quotes and parentheses between the period and whitespace.
+    inner = re.sub(
+        r"([.!?])(['\")\]]*)\s+(?=[A-Z\[\\(\"])",
+        r"\1\2\n",
+        text.strip(),
+    )
+    sentences = inner.split("\n")
     lines = []
     for i, s in enumerate(sentences, 1):
         if s.strip():
