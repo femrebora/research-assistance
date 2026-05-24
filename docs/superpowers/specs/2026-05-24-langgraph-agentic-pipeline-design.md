@@ -3,7 +3,7 @@
 **Date:** 2026-05-24
 **Status:** Approved (revised after UI-completeness audit)
 **Author:** Brainstorming session with `superpowers:brainstorming`
-**Revision:** R2 — added CLIChatModel adapter, /logs viewer, /files browser + editor, /bib viewer, /settings provider-ping, global error overlay
+**Revision:** R3 — adds Section 12 (UX clarity: descriptions and per-field help text everywhere) and Section 13 (Originality check tool: internal + OpenAlex/Crossref). R2 added: CLIChatModel adapter, /logs viewer, /files browser + editor, /bib viewer, /settings provider-ping, global error overlay.
 
 ## 1. Problem & Goal
 
@@ -580,7 +580,9 @@ CREATE INDEX idx_runs_status  ON runs(status);
 ## 10. Build Sequence
 
 1. **Foundation** — `agents/` package: state, schemas, policies, observability, **models.py + cli_chat_model.py**, all 5 nodes, graph wiring. Unit tests per node + graph + CLIChatModel.
+1.5. **UX clarity quick-win** — `tools.html` renders `Field.help` for every field type; fill `help=` on every Field in TOOL_SPECS; dashboard tool catalog gets one-line descriptions; hand-written pages get inline `<details>` help blocks for technical params. Ships before the big UI work so all later pages inherit the pattern.
 2. **CLI refactor** — `pipeline.py` becomes thin wrapper; add new flags; `--legacy` test passes.
+2.5. **Originality check tool** — `verification/originality.py` + `external_match.py` + new TOOL_SPECS entry. Available via existing `/tools/originality` form immediately.
 3. **Workbench UI + error overlay** — `/workbench` page + SSE bridge + `runs_store.py` (JSONL write). Global error overlay component shipped here so every later page benefits.
 4. **Runs UI** — SQLite index + `/runs` list + `/runs/<id>` detail + fork.
 5. **Usage + Settings (with provider-ping)** — dashboards + presets + `/settings/ping`.
@@ -614,3 +616,196 @@ Total expected delta: ~5500-6000 lines of code (incl. tests). Existing CLI tools
 | Inline editor saves bad content over a draft | All `/files/save/<path>` writes go to a `<path>.tmp` first, then atomic `os.replace()`. On any exception the tmp is unlinked and the original is intact. |
 | Error overlay leaks API keys in "copy as bug report" | `errors.format_error` runs the blob through a regex redactor for `(SK-|sk-ant|AIza|...)` patterns AND env-var keys matching `*_API_KEY|*_TOKEN|*_SECRET`. Test: `test_errors.py::test_no_secret_leakage` with a synthetic env. |
 | Logs viewer slow at large JSONL volumes | Stream-read JSONL with offset/limit; never load full file. Cap displayed rows at 500/page. For thesis-scale this is fine (months of logs are tens of MB at most). |
+| Originality check produces false positives | Default thresholds tuned to err toward "yellow flag, please review" rather than "red flag, plagiarism." Tool output explicitly says "potential match — human review required." |
+| OpenAlex/Crossref API rate limits | Politeness pool: ≤2 requests/second, cached responses for 24h, batched paragraph queries. Use the `mailto=` polite-pool parameter on OpenAlex. |
+
+## 12. UX Clarity — Descriptions & Help Text Everywhere
+
+The audit found that descriptions/help already exist in the code, but the templates only render them inconsistently. The fix is small and concrete.
+
+### Existing state
+
+- `ToolSpec.description` — set for every tool in `TOOL_SPECS`. Rendered at the top of `/tools/<name>` (good).
+- `Field.help` — set for some fields. Rendered in `tools.html` **only for checkbox fields** (line 29). Silently dropped for text/textarea/select/number/file_or_text. This is a one-line template bug equivalent.
+- Hand-written pages (`/ask`, `/compare`, `/sessions`, `/index`) — have a short one-liner at top but no per-field help.
+- Dashboard `/index.html` — tool catalog has no descriptions next to each item.
+
+### Changes
+
+1. **`tools.html` — render `fld.help` for every field type.** Single template edit. For each of textarea/select/number/text/file_or_text, add the same `{% if fld.help %}<p class="text-xs text-slate-500 mt-1">{{ fld.help }}</p>{% endif %}` block that checkbox already has.
+2. **Populate `Field.help` on every field** in `TOOL_SPECS` that doesn't have it yet. Audit shows ~70% are empty. Each gets a one-sentence "what does this knob do, in plain English" string.
+3. **Hand-written pages get inline help** — `/ask` adds `<details><summary>What is k / threshold?</summary>…</details>` blocks under the relevant slider labels. Same for `/compare` (model picker rationale), `/index` (collection / force / limit semantics).
+4. **Dashboard `/index.html` tool catalog** — under each tool name, render its `spec.description` truncated to one line. The full description shows on hover or click-through.
+5. **Workbench `/workbench` form** — every field gets a `?` tooltip icon that pops `fld.help` on click. Particularly important for iteration knobs and cost cap (otherwise users won't know what they do).
+6. **Mode preset banner on Workbench** — a small "Quick / Standard / Best" hint above the role pickers explaining what the current preset implies (e.g., "Standard = sonnet + gemini-pro, 1 iteration max, $2 cost cap").
+
+### Testing
+
+- `tests/web/test_tools_template.py` — render each `ToolSpec`, assert `description` appears and at least N `help` strings appear in the HTML.
+- `tests/web/test_field_help_coverage.py` — assert every `Field` in `TOOL_SPECS` has a non-empty `help`. Failing the test forces us to fill them all in.
+
+### Effort
+
+~250 lines across template edits + `TOOL_SPECS` help-string fills. Zero risk to existing flows. Shipped as step 1.5 in the build sequence (right after step 1 foundation, before the Workbench UI).
+
+## 13. Originality / Plagiarism Check
+
+A new tool that combines internal similarity (existing `paraphrase_check.py`) with an external academic check (OpenAlex + Crossref). Honest naming: "Originality check" not "Plagiarism check," because no free tool can prove plagiarism — only flag suspicious matches for human review.
+
+### Module structure
+
+```
+research_assistant/
+├── verification/
+│   ├── originality.py            ← NEW: orchestrator that runs internal + external checks
+│   ├── paraphrase_check.py       ← EXISTING: untouched, called by originality.py
+│   └── external_match.py         ← NEW: OpenAlex + Crossref query helpers
+└── web/
+    └── tool_runner.py            ← + TOOL_SPECS entry for "originality" (in category "audit")
+```
+
+### `originality.py` flow
+
+```python
+def check_originality(
+    draft_path: str,
+    *,
+    internal_threshold: float = 0.85,   # cosine sim against your library
+    external_threshold: float = 0.80,   # cosine sim against OpenAlex/Crossref abstracts
+    min_chars: int = 150,
+    sources: tuple[str, ...] = ("internal", "openalex", "crossref"),
+    embedding_model: str = DEFAULT_EMBED_MODEL,
+) -> OriginalityReport:
+    paragraphs = split_paragraphs(read_file(draft_path))
+    paragraphs = [p for p in paragraphs if len(p) >= min_chars]
+
+    report = OriginalityReport(paragraphs=[])
+    for i, para in enumerate(paragraphs):
+        entry = ParagraphReport(index=i, text=para, matches=[])
+        if "internal" in sources:
+            entry.matches += _internal_matches(para, internal_threshold)
+        if "openalex" in sources:
+            entry.matches += _openalex_matches(para, external_threshold)
+        if "crossref" in sources:
+            entry.matches += _crossref_matches(para, external_threshold)
+        if entry.matches:
+            report.paragraphs.append(entry)
+    return report
+```
+
+### `external_match.py`
+
+Two functions, both rate-limited and cached:
+
+```python
+def search_openalex(paragraph: str, *, limit: int = 5) -> list[ExternalMatch]:
+    """
+    Query OpenAlex /works with `search=` parameter, return top-N abstracts.
+    Embed each returned abstract, return matches with cosine >= threshold.
+    Polite pool: include mailto query param.
+    """
+
+def search_crossref(paragraph: str, *, limit: int = 5) -> list[ExternalMatch]:
+    """
+    Query Crossref /works with `query.bibliographic=` parameter.
+    Same flow as OpenAlex.
+    """
+```
+
+Cache: simple shelf at `~/.cache/research-assistant/external_match_cache.shelf` keyed by query hash. 24h TTL. Survives between runs.
+
+### Schemas (Pydantic, in `verification/originality.py`)
+
+```python
+class ExternalMatch(BaseModel):
+    source: Literal["internal", "openalex", "crossref"]
+    similarity: float
+    title: str
+    authors: str | None
+    year: int | None
+    doi: str | None
+    citekey: str | None       # only for internal matches
+    excerpt: str               # snippet that matched
+    url: str | None
+
+class ParagraphReport(BaseModel):
+    index: int
+    text: str                  # the paragraph being checked
+    matches: list[ExternalMatch]
+    @property
+    def severity(self) -> Literal["green", "yellow", "red"]:
+        if not self.matches: return "green"
+        max_sim = max(m.similarity for m in self.matches)
+        return "red" if max_sim >= 0.92 else "yellow"
+
+class OriginalityReport(BaseModel):
+    paragraphs: list[ParagraphReport]
+    @property
+    def summary(self) -> str:
+        red = sum(1 for p in self.paragraphs if p.severity == "red")
+        yellow = sum(1 for p in self.paragraphs if p.severity == "yellow")
+        return f"{red} red flag(s), {yellow} yellow flag(s)"
+```
+
+### CLI
+
+```bash
+ra-originality drafts/ch1.md
+ra-originality drafts/ch1.md --sources internal,openalex   # skip Crossref
+ra-originality drafts/ch1.md --internal-threshold 0.80 --external-threshold 0.75
+ra-originality drafts/ch1.md --json
+```
+
+Added to `pyproject.toml` `[project.scripts]` as `ra-originality = "research_assistant.verification.originality:main"`.
+
+### Web UI
+
+New `TOOL_SPECS` entry in `tool_runner.py`:
+
+```python
+ToolSpec(
+    name="originality",
+    label="Originality check",
+    category="audit",
+    description=(
+        "Flag paragraphs that look too similar to (a) your own indexed library "
+        "or (b) published abstracts on OpenAlex / Crossref. Not a true plagiarism "
+        "detector — it produces leads for human review."
+    ),
+    fields=(
+        Field("draft_file", "Draft", "file_or_text", required=True, rows=14,
+              help="Paste the chapter / section text, or supply a path under THESIS_ROOT."),
+        Field("sources", "Sources to check", "multiselect", flag="--sources",
+              default="internal,openalex,crossref",
+              options=("internal", "openalex", "crossref"),
+              help=("Internal = your indexed Zotero papers. "
+                    "OpenAlex / Crossref = published academic abstracts. "
+                    "All three by default.")),
+        Field("internal_threshold", "Internal similarity threshold", "number",
+              flag="--internal-threshold", default=0.85, min=0.5, max=1.0, step=0.01,
+              help="Higher = stricter. 0.85 catches near-verbatim; 0.75 catches close paraphrase."),
+        Field("external_threshold", "External similarity threshold", "number",
+              flag="--external-threshold", default=0.80, min=0.5, max=1.0, step=0.01,
+              help="Cosine similarity between your paragraph and the matched abstract."),
+        Field("min_chars", "Skip paragraphs shorter than", "number", flag="--min-chars",
+              default=150, min=10, max=500, step=10,
+              help="Tiny paragraphs are too noisy to check reliably."),
+        Field("as_json", "JSON output", "checkbox", flag="--json"),
+    ),
+    long_running=True,
+)
+```
+
+Result rendering reuses the same `_result.html` partial. A small badge component shows green/yellow/red severity per paragraph.
+
+### Testing
+
+- `tests/verification/test_originality.py` — fixture draft with one clean paragraph + one with verbatim copy from a fixture .bib entry; assert correct severity per paragraph.
+- `tests/verification/test_external_match.py` — OpenAlex / Crossref clients mocked (no live API calls in CI); cache hit/miss tested; rate-limiter respected.
+- `tests/test_originality_cli.py` — Click runner round-trip; `--json` schema validated.
+
+### Effort
+
+~600 lines: `originality.py` (~250), `external_match.py` (~150), tests (~200). New deps: nothing — uses `httpx` (already in `requirements.txt`) for HTTP and stdlib `shelve` for cache.
+
+Shipped as step 2.5 in the build sequence — after CLI refactor (step 2), before Workbench (step 3) so it's exposed in the existing `/tools/originality` form first, and later gets a dedicated panel in Workbench's "Verify" tab.
