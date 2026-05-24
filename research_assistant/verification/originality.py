@@ -8,9 +8,33 @@ Usage:
 """
 from __future__ import annotations
 
+import json as _json
+import math
+import sys
 from typing import Literal
 
+import click
 from pydantic import BaseModel
+from rich.console import Console
+from rich.table import Table
+
+from research_assistant.common import read_file
+from research_assistant.researcher import (
+    CHROMA_DIR,
+    DEFAULT_EMBED_MODEL,
+    _embed_single,
+    _get_collection,
+)
+from research_assistant.verification import external_match as _em
+from research_assistant.verification.paraphrase_check import split_paragraphs
+
+DEFAULT_INTERNAL_THRESHOLD = 0.85
+DEFAULT_EXTERNAL_THRESHOLD = 0.80
+DEFAULT_MIN_CHARS = 150
+DEFAULT_SOURCES: tuple[str, ...] = ("internal", "openalex", "crossref")
+EXTERNAL_FETCH_LIMIT = 5
+
+_console = Console()
 
 
 class ExternalMatch(BaseModel):
@@ -50,21 +74,15 @@ class OriginalityReport(BaseModel):
         return f"{red} red flag(s), {yellow} yellow flag(s)"
 
 
-from research_assistant.common import read_file
-from research_assistant.researcher import (
-    CHROMA_DIR,
-    DEFAULT_EMBED_MODEL,
-    _embed_single,
-    _get_collection,
-)
-from research_assistant.verification.paraphrase_check import split_paragraphs
-from research_assistant.verification import external_match as _em
-
-DEFAULT_INTERNAL_THRESHOLD = 0.85
-DEFAULT_EXTERNAL_THRESHOLD = 0.80
-DEFAULT_MIN_CHARS = 150
-DEFAULT_SOURCES: tuple[str, ...] = ("internal", "openalex", "crossref")
-EXTERNAL_FETCH_LIMIT = 5
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
 
 
 def _internal_matches(paragraph: str, threshold: float) -> list[ExternalMatch]:
@@ -143,18 +161,6 @@ def _external_matches_crossref(paragraph: str, threshold: float) -> list[Externa
     return _external_matches_from("crossref", paragraph, threshold)
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
-    import math
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b, strict=False))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
-
-
 def check_originality(
     draft_path: str,
     *,
@@ -180,3 +186,78 @@ def check_originality(
             report_paragraphs.append(ParagraphReport(index=i, text=para, matches=matches))
 
     return OriginalityReport(paragraphs=report_paragraphs)
+
+
+@click.command()
+@click.argument("draft_file")
+@click.option("--sources", default=",".join(DEFAULT_SOURCES),
+              help="Comma-separated subset of: internal,openalex,crossref.")
+@click.option("--internal-threshold", default=DEFAULT_INTERNAL_THRESHOLD, type=float,
+              help="Min cosine similarity vs. your indexed library to flag (0-1).")
+@click.option("--external-threshold", default=DEFAULT_EXTERNAL_THRESHOLD, type=float,
+              help="Min cosine similarity vs. OpenAlex/Crossref abstracts (0-1).")
+@click.option("--min-chars", default=DEFAULT_MIN_CHARS, type=int,
+              help="Skip paragraphs shorter than this many characters.")
+@click.option("--json", "as_json", is_flag=True,
+              help="Output the OriginalityReport as JSON.")
+def main(draft_file, sources, internal_threshold, external_threshold, min_chars, as_json):
+    """Flag paragraphs that look too similar to indexed papers or to published abstracts."""
+    src_tuple = tuple(s.strip() for s in sources.split(",") if s.strip())
+    valid = {"internal", "openalex", "crossref"}
+    invalid = set(src_tuple) - valid
+    if invalid:
+        click.echo(f"Unknown source(s): {sorted(invalid)}. Valid: {sorted(valid)}.", err=True)
+        sys.exit(2)
+
+    report = check_originality(
+        draft_file,
+        sources=src_tuple,
+        internal_threshold=internal_threshold,
+        external_threshold=external_threshold,
+        min_chars=min_chars,
+    )
+
+    if as_json:
+        click.echo(_json.dumps(report.model_dump(), indent=2, ensure_ascii=False))
+        if any(p.severity == "red" for p in report.paragraphs):
+            sys.exit(1)
+        return
+
+    _console.print(f"\n[bold]Originality check: {draft_file}[/bold]")
+    _console.print(f"[dim]{report.summary}[/dim]\n")
+
+    if not report.paragraphs:
+        _console.print("[green]No paragraphs exceeded similarity thresholds.[/green]")
+        return
+
+    table = Table(title="Flagged paragraphs", show_lines=True)
+    table.add_column("#", style="cyan", width=4)
+    table.add_column("Severity", style="bold", width=8)
+    table.add_column("Top match", style="white", width=44)
+    table.add_column("Sim", style="red", width=6)
+    table.add_column("Excerpt", style="dim", width=44)
+
+    severity_style = {"red": "red", "yellow": "yellow", "green": "green"}
+    for p in report.paragraphs:
+        top = max(p.matches, key=lambda m: m.similarity)
+        cite = f"@{top.citekey}" if top.citekey else (top.doi or top.url or "(no id)")
+        label = f"[{top.source}] {cite} -- {top.title[:30]}"
+        excerpt = p.text[:120].replace("\n", " ")
+        if len(p.text) > 120:
+            excerpt += "..."
+        sev = p.severity
+        table.add_row(
+            str(p.index),
+            f"[{severity_style[sev]}]{sev.upper()}[/{severity_style[sev]}]",
+            label,
+            f"{top.similarity:.2f}",
+            excerpt,
+        )
+    _console.print(table)
+
+    if any(p.severity == "red" for p in report.paragraphs):
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

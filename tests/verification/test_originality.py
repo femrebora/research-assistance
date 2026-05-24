@@ -26,7 +26,9 @@ def test_paragraph_report_severity_thresholds():
 @pytest.mark.unit
 def test_originality_report_summary():
     from research_assistant.verification.originality import (
-        ExternalMatch, OriginalityReport, ParagraphReport,
+        ExternalMatch,
+        OriginalityReport,
+        ParagraphReport,
     )
 
     matches_red = [ExternalMatch(
@@ -44,9 +46,6 @@ def test_originality_report_summary():
         ParagraphReport(index=2, text="x" * 200, matches=[]),
     ])
     assert report.summary == "1 red flag(s), 1 yellow flag(s)"
-
-
-from unittest.mock import patch
 
 
 @pytest.mark.unit
