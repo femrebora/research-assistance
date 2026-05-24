@@ -48,7 +48,10 @@
                         <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">{{ label }}</p>
                         <ul class="space-y-0.5">
                         {% for tool in tools_in_cat %}
-                            <li>{{ nav_link("/tools/" + tool.name, tool.label, active) }}</li>
+                            <li>
+                                {{ nav_link("/tools/" + tool.name, tool.label, active) }}
+                                <p class="text-xs text-slate-500 mt-0.5 px-2">{{ (tool.description.split('.')[0]|truncate(100, True, '')) }}</p>
+                            </li>
                         {% endfor %}
                         </ul>
                     </div>
