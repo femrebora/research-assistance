@@ -5,7 +5,7 @@
 [![flask](https://img.shields.io/badge/web%20UI-Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![models](https://img.shields.io/badge/models-Claude%20%7C%20Gemini%20%7C%20DeepSeek%20%7C%20GPT--5-7C3AED)](#supported-models)
 
-A research toolkit for master's and PhD thesis work. Index your Zotero library, ask questions against your papers, compare model answers, and run the full draft → paraphrase → verify pipeline — all from a web UI.
+CLI toolkit and Flask web UI for thesis research: Zotero-indexed RAG, multi-model comparison, writing-pipeline tools (outline, critique, paraphrase check, audit, coherence), and external paper discovery (OpenAlex / Semantic Scholar / Elicit).
 
 ## Quick start
 
