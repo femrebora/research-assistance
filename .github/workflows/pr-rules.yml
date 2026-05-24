@@ -3,7 +3,6 @@ name: pr-rules
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +12,6 @@ jobs:
   validate:
     name: Validate PR title and description
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Enforce PR rules
         env:
@@ -22,24 +20,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          title_regex='^(feat|fix|docs|refactor|test|chore|ci)(\([a-z0-9._-]+\))?: .+'
+          title_regex='^(feat|fix|docs|refactor|test|chore|ci)(\([A-Za-z0-9._/-]+\))?: [^ ].*'
           required_headings=(
             "## Summary"
             "## Testing"
             "## Checklist"
           )
+          required_checked_items=(
+            "PR title format is valid"
+            "Scope of this PR is focused and minimal"
+            "Documentation was updated if behavior changed"
+            "No secrets or sensitive data were added"
+          )
 
-          if [[ -z "${PR_TITLE// }" ]]; then
+          title_compact="${PR_TITLE//[[:space:]]/}"
+          body_compact="${PR_BODY//[[:space:]]/}"
+
+          if [[ -z "$title_compact" ]]; then
             echo "::error::PR title is required."
             exit 1
           fi
 
           if ! [[ "$PR_TITLE" =~ $title_regex ]]; then
-            echo "::error::PR title must match '<type>: <short description>' or '<type>(scope): <short description>' (types: feat|fix|docs|refactor|test|chore|ci)."
+            echo "::error::PR title must match '<type>: <short description>' or '<type>(optional-scope): <short description>' with exactly one space after ':' and a non-space description start (types: feat|fix|docs|refactor|test|chore|ci)."
             exit 1
           fi
 
-          if [[ -z "${PR_BODY// }" ]]; then
+          if [[ -z "$body_compact" ]]; then
             echo "::error::PR description is required and must follow the PR template."
             exit 1
           fi
@@ -51,7 +58,12 @@ jobs:
             fi
           done
 
-          if ! grep -Eq -- "- \[[ xX]\] PR title follows `<type>: <short description>` \(e\.g\. `fix: handle empty citekey`\)" <<<"$PR_BODY"; then
-            echo "::error::Checklist item 'PR title follows `<type>: <short description>` (e.g. `fix: handle empty citekey`)' must be present."
-            exit 1
-          fi
+          for item in "${required_checked_items[@]}"; do
+            if ! grep -Fq -- "- [x] ${item}" <<<"$PR_BODY" \
+              && ! grep -Fq -- "- [X] ${item}" <<<"$PR_BODY" \
+              && ! grep -Fq -- "* [x] ${item}" <<<"$PR_BODY" \
+              && ! grep -Fq -- "* [X] ${item}" <<<"$PR_BODY"; then
+              echo "::error::Checklist item '${item}' must be present and checked."
+              exit 1
+            fi
+          done
