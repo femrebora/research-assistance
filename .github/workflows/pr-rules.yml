@@ -5,6 +5,10 @@ on:
     types: [opened, edited, synchronize, reopened]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   validate:
     name: Validate PR title and description
@@ -31,7 +35,7 @@ jobs:
           fi
 
           if ! [[ "$PR_TITLE" =~ $title_regex ]]; then
-            echo "::error::PR title must match '<type>: <short description>' (types: feat|fix|docs|refactor|test|chore|ci)."
+            echo "::error::PR title must match '<type>: <short description>' or '<type>(scope): <short description>' (types: feat|fix|docs|refactor|test|chore|ci)."
             exit 1
           fi
 
@@ -47,7 +51,7 @@ jobs:
             fi
           done
 
-          if ! grep -Eq -- "- \[[ xX]\] PR title follows" <<<"$PR_BODY"; then
-            echo "::error::Checklist item 'PR title follows ...' must be present."
+          if ! grep -Eq -- "- \[[ xX]\] PR title follows `<type>: <short description>` \(e\.g\. `fix: handle empty citekey`\)" <<<"$PR_BODY"; then
+            echo "::error::Checklist item 'PR title follows `<type>: <short description>` (e.g. `fix: handle empty citekey`)' must be present."
             exit 1
           fi
