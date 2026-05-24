@@ -46,6 +46,19 @@
                 <input type="text" name="save_name" placeholder="session name" value="{{ save_name }}"
                        class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
             </div>
+            <div class="md:col-span-4 -mt-1">
+                <details class="text-xs text-slate-500 cursor-pointer select-none">
+                    <summary class="text-slate-600 hover:text-slate-800">What do k and threshold mean?</summary>
+                    <p class="mt-1 leading-relaxed">
+                        <strong>k</strong> is the maximum number of source chunks retrieved from your indexed library
+                        before the model writes its answer. Higher k = more context but more cost &amp; potential noise.
+                        <br>
+                        <strong>Threshold</strong> is the minimum cosine similarity a chunk must have to be included.
+                        Higher threshold = stricter filter, fewer chunks. Drop it to 0.2&ndash;0.3 if you keep seeing
+                        "No sufficiently relevant passages found".
+                    </p>
+                </details>
+            </div>
         </div>
 
         <button type="submit"
