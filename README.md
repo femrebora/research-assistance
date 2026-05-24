@@ -18,8 +18,6 @@ cp env.example .env    # then edit .env with your API keys
 ra-web                 # open http://127.0.0.1:5050
 ```
 
-That's it. Everything else — asking questions, comparing models, running tools, managing the index — happens in the browser.
-
 ## Configuration
 
 Put your keys in `.env`. At minimum, set one model provider:
