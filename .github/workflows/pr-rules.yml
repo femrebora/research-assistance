@@ -1,0 +1,53 @@
+name: pr-rules
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate PR title and description
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Enforce PR rules
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          title_regex='^(feat|fix|docs|refactor|test|chore|ci)(\([a-z0-9._-]+\))?: .+'
+          required_headings=(
+            "## Summary"
+            "## Testing"
+            "## Checklist"
+          )
+
+          if [[ -z "${PR_TITLE// }" ]]; then
+            echo "::error::PR title is required."
+            exit 1
+          fi
+
+          if ! [[ "$PR_TITLE" =~ $title_regex ]]; then
+            echo "::error::PR title must match '<type>: <short description>' (types: feat|fix|docs|refactor|test|chore|ci)."
+            exit 1
+          fi
+
+          if [[ -z "${PR_BODY// }" ]]; then
+            echo "::error::PR description is required and must follow the PR template."
+            exit 1
+          fi
+
+          for heading in "${required_headings[@]}"; do
+            if ! grep -Fq "$heading" <<<"$PR_BODY"; then
+              echo "::error::PR description must include '$heading'."
+              exit 1
+            fi
+          done
+
+          if ! grep -Eq -- "- \[[ xX]\] PR title follows" <<<"$PR_BODY"; then
+            echo "::error::Checklist item 'PR title follows ...' must be present."
+            exit 1
+          fi
