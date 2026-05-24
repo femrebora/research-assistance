@@ -74,9 +74,10 @@ ra-disclose = "research_assistant.writing.disclose:main"
 
 # Verification subpackage
 ra-audit = "research_assistant.verification.audit:main"
-ra-verify = "research_assistant.verification.verify:main"
 ra-claim-verify = "research_assistant.verification.claim_verify:main"
+ra-originality = "research_assistant.verification.originality:main"
 ra-paraphrase-check = "research_assistant.verification.paraphrase_check:main"
+ra-verify = "research_assistant.verification.verify:main"
 
 [tool.setuptools.packages.find]
 include = ["research_assistant*"]
