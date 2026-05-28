@@ -71,14 +71,61 @@ Review which applications have reached clinical practice. Discuss regulatory app
 ### Challenges and Future Directions (~800 words)
 Discuss technical, regulatory, and economic challenges. Identify emerging trends and opportunities. Be honest about limitations — what needs to happen for the field to advance?
 
+## Figure Strategy — Mermaid Diagrams
+
+This review must be figure-centric. Generate Mermaid diagrams directly in the markdown. Mermaid is a text-based diagramming language — you write simple syntax and it renders as charts. For EACH major subsection, write text that leads into a diagram, and reference it naturally in surrounding prose ("As shown in Figure 1, ...").
+
+Output each diagram as a ```mermaid code block with a "**Figure N: Title**" heading above it:
+
+**Figure 1: Market Growth and Key Segments**
+```mermaid
+xychart-beta
+  title "Personalized Medicine Market"
+  x-axis ["2020", "2022", "2024", "2026", "2028", "2030"]
+  y-axis "Billions USD" 0 --> 40
+  bar [12, 16, 22, 28, 33, 38]
+```
+
+Target diagrams to plan and generate:
+
+1. **Figure 1: Market Overview** (Introduction section)
+   - Use `xychart-beta` for bar/line charts. Show market size growth, key segment breakdowns, CAGR. Include real numbers from the research data.
+
+2. **Figure 2: Technology and Methods Landscape** (Current Methods section)
+   - Use `flowchart` or `graph`. Show how different technologies relate — AI/ML methods, sequencing platforms, multi-omics approaches. Use different node shapes for categories.
+
+3. **Figure 3: Company and Commercialization Ecosystem** (Industry Landscape section)
+   - Use `quadrantChart` to map companies by funding stage vs focus area, or `flowchart` to show partnerships and competitive landscape. Include real company names.
+
+4. **Figure 4: Clinical and Regulatory Timeline** (Clinical Applications section)
+   - Use `timeline` or `gantt` to show FDA/EMA approvals, breakthrough designations, clinical trial milestones chronologically.
+
+5. **Figure 5: Challenges and Future Roadmap** (Challenges section)
+   - Use `flowchart` with decision nodes or `graph` showing bottlenecks → solutions → future directions. Gap analysis or roadmap format.
+
+### Mermaid Syntax Reference
+
+```mermaid
+xychart-beta    — bar charts, line charts (market data, comparisons)
+flowchart LR/TB — process flows, technology relationships, ecosystems
+quadrantChart   — 2x2 positioning (companies by funding vs focus)
+timeline        — chronological milestones, regulatory history
+gantt           — project timelines, clinical trial phases
+pie             — market share, segmentation
+graph LR/TB     — relationship diagrams, concept mapping
+mindmap         — hierarchical topic breakdown
+```
+
 Important:
 - This is a REVIEW article. Survey the field. Compare approaches. Do NOT invent or describe a single framework as your own.
 - Use real company names, product names, and market data from the provided research
 - Do NOT use "our," "we," or "this paper" to describe a framework — you are reviewing the literature
 - Cite specific algorithms, platforms, companies, and publications from the research data
 - Mark places where citations are needed with [@citekey] placeholders
-- Mark places where figures should be inserted with [FIGURE: description]
+- Generate actual ```mermaid code blocks with real data — not placeholder descriptions
+- Reference each figure in surrounding text ("As shown in Figure 1, ...")
 - Vary sentence structure and openings — read like a human scientist wrote it
 - NO em dashes (—) anywhere
 - Keep each sentence under ~35 words
-- Output the complete paper in Markdown format with # section headings."""
+- Output the complete paper in Markdown format with # section headings. Mermaid blocks render natively in many Markdown viewers."""
+
