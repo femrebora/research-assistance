@@ -14,10 +14,11 @@ AI PATTERNS TO AVOID:
 - Overused AI words: "delve", "crucial", "robust", "moreover", "furthermore"
 
 WRITING PRINCIPLES:
-- Survey the field broadly — cite multiple approaches, not one framework
-- Compare and contrast different methods realistically
-- Be specific about real companies, products, and clinical trials
-- Include market data and trends where available
+- Survey the field broadly — cite multiple approaches, companies, and studies
+- Compare and contrast different methods, business models, and clinical applications
+- Be specific about real companies, products, clinical trials, and market data
+- Include market data, funding numbers, and trends where available
+- Discuss gaps honestly — where does the field fall short?
 - Vary sentence openings and lengths
 - Write like a scientist reviewing their field, not promoting their own work"""
 
@@ -54,78 +55,67 @@ AI sentence patterns to avoid: {'; '.join(patterns[:10])}
 Write a complete REVIEW ARTICLE with these sections:
 
 ### Abstract (~250 words)
-Summarize the current state of the field, key trends, major players, and future outlook. This is a review — do NOT describe "our framework" or "our approach." Survey what exists.
+Summarize the current state of personalized medicine, key trends, major technologies, market forces, and challenges. Cover the full scope — genomics, diagnostics, targeted therapies, AI, and the gap between research and commercialization. This is a review — survey what exists.
 
-### Introduction (~800 words)
-Establish the importance of the topic. Review major historical developments that led to the current state. State what this review covers. Do NOT announce "this paper describes a framework" — this is a literature review, not a methods paper.
+### 1. Introduction (~800 words)
+Define personalized medicine and its scope. Trace the historical evolution from pharmacogenetics to modern multi-omics precision medicine. Cover the key drivers: cheaper sequencing, targeted therapies, companion diagnostics, AI, and regulatory evolution. State what this review covers and why now is a pivotal moment for the field. Do NOT announce "this paper describes a framework."
 
-### Current Methods and Technologies (~1500 words)
-Survey the major computational and experimental approaches in the field. Compare strengths and limitations. Be specific about algorithms, platforms, and techniques. Group by approach type (e.g., AI-based, genomics-based, multi-omics). Cite specific tools published in the literature.
+### 2. Core Technologies and Approaches (~1500 words)
+Survey the major technologies that enable personalized medicine:
+- **Genomics and Sequencing** — WGS, WES, targeted panels, costs, key platforms (Illumina, PacBio, Oxford Nanopore)
+- **Proteomics and Metabolomics** — mass spectrometry, affinity-based platforms, multi-omics integration
+- **Companion Diagnostics** — how they work, major examples (HER2, EGFR, PD-L1, BRCA), regulatory pathways
+- **Liquid Biopsy** — ctDNA, CTCs, exosomes, early detection, MRD monitoring
+- **AI and Machine Learning** — variant interpretation, drug response prediction, clinical decision support
+- **Pharmacogenomics** — CYP450 testing, CPIC guidelines, clinical implementation
 
-### Industry Landscape and Commercialization (~1000 words)
-Describe which companies are active in this space. Include startups, major pharma, diagnostic companies. Report funding rounds, product launches, partnerships. Be specific with names and numbers from the research data.
+Compare real platforms and approaches. Include specific company names, products, and performance metrics from the research data. Use [FIGURE: description] placeholders where a chart would help.
 
-### Clinical Applications and Regulatory Status (~800 words)
-Review which applications have reached clinical practice. Discuss regulatory approvals (FDA, EMA), clinical trials, and reimbursement status. Cover companion diagnostics where relevant.
+### 3. Industry Landscape and Commercialization (~1000 words)
+Describe the business of personalized medicine:
+- Major companies: Roche, Illumina, Thermo Fisher, Guardant Health, Exact Sciences, Tempus, Foundation Medicine
+- Startups and recent funding rounds (use real names and numbers from the research)
+- Business models: diagnostic testing, SaaS/AI platforms, CDx co-development with pharma
+- The role of big pharma in driving companion diagnostic adoption
+- **The academic-industry gap**: why does high research output not translate into startups? Discuss barriers: regulatory complexity, reimbursement uncertainty, long validation timelines, capital intensity. Use specific country/region examples where available (e.g., Turkey, emerging markets).
+- Reimbursement landscape: which tests get paid for, which don't, and why
 
-### Challenges and Future Directions (~800 words)
-Discuss technical, regulatory, and economic challenges. Identify emerging trends and opportunities. Be honest about limitations — what needs to happen for the field to advance?
+Use [FIGURE: description] placeholders for market charts and company landscape maps.
 
-## Figure Strategy — Mermaid Diagrams
+### 4. Clinical Applications (~800 words)
+Review where personalized medicine is actually used today:
+- **Oncology** — targeted therapies, immunotherapy biomarkers, liquid biopsy for monitoring
+- **Cardiovascular** — pharmacogenomics for antiplatelets, statins, warfarin
+- **Rare Disease** — genomic diagnosis, newborn screening
+- **Infectious Disease** — HIV/HCV resistance testing, antibiotic stewardship
+- **Pharmacogenomics in practice** — institutions that have implemented preemptive PGx testing (St. Jude, Vanderbilt, Mayo Clinic)
 
-This review must be figure-centric. Generate Mermaid diagrams directly in the markdown. Mermaid is a text-based diagramming language — you write simple syntax and it renders as charts. For EACH major subsection, write text that leads into a diagram, and reference it naturally in surrounding prose ("As shown in Figure 1, ...").
+For each area, describe real clinical implementations, not hypotheticals. Include specific drugs, biomarkers, and outcomes.
 
-Output each diagram as a ```mermaid code block with a "**Figure N: Title**" heading above it:
+Use [FIGURE: description] placeholders for clinical timelines and comparison tables.
 
-**Figure 1: Market Growth and Key Segments**
-```mermaid
-xychart-beta
-  title "Personalized Medicine Market"
-  x-axis ["2020", "2022", "2024", "2026", "2028", "2030"]
-  y-axis "Billions USD" 0 --> 40
-  bar [12, 16, 22, 28, 33, 38]
-```
+### 5. Challenges and Future Directions (~800 words)
+Honest assessment of what holds the field back:
+- **Scientific**: tumor heterogeneity, polygenic risk complexity, missing heritability
+- **Regulatory**: evolving FDA/EMA frameworks, LDT vs IVD uncertainty
+- **Economic**: reimbursement, cost-effectiveness evidence gaps, who pays for testing
+- **Data**: EHR integration, data silos, European-ancestry bias in genomic databases
+- **Translation gap**: why academic discoveries don't become products — regulatory burden, funding gaps, lack of entrepreneurial culture in some regions
+- **Emerging opportunities**: multi-omics, digital twins, wearable-based personalized monitoring, AI-native diagnostics
 
-Target diagrams to plan and generate:
+Be specific and critical. Do not end with generic "more research is needed."
 
-1. **Figure 1: Market Overview** (Introduction section)
-   - Use `xychart-beta` for bar/line charts. Show market size growth, key segment breakdowns, CAGR. Include real numbers from the research data.
+Use [FIGURE: description] placeholders for gap analysis or roadmap figures.
 
-2. **Figure 2: Technology and Methods Landscape** (Current Methods section)
-   - Use `flowchart` or `graph`. Show how different technologies relate — AI/ML methods, sequencing platforms, multi-omics approaches. Use different node shapes for categories.
-
-3. **Figure 3: Company and Commercialization Ecosystem** (Industry Landscape section)
-   - Use `quadrantChart` to map companies by funding stage vs focus area, or `flowchart` to show partnerships and competitive landscape. Include real company names.
-
-4. **Figure 4: Clinical and Regulatory Timeline** (Clinical Applications section)
-   - Use `timeline` or `gantt` to show FDA/EMA approvals, breakthrough designations, clinical trial milestones chronologically.
-
-5. **Figure 5: Challenges and Future Roadmap** (Challenges section)
-   - Use `flowchart` with decision nodes or `graph` showing bottlenecks → solutions → future directions. Gap analysis or roadmap format.
-
-### Mermaid Syntax Reference
-
-```mermaid
-xychart-beta    — bar charts, line charts (market data, comparisons)
-flowchart LR/TB — process flows, technology relationships, ecosystems
-quadrantChart   — 2x2 positioning (companies by funding vs focus)
-timeline        — chronological milestones, regulatory history
-gantt           — project timelines, clinical trial phases
-pie             — market share, segmentation
-graph LR/TB     — relationship diagrams, concept mapping
-mindmap         — hierarchical topic breakdown
-```
-
-Important:
-- This is a REVIEW article. Survey the field. Compare approaches. Do NOT invent or describe a single framework as your own.
-- Use real company names, product names, and market data from the provided research
-- Do NOT use "our," "we," or "this paper" to describe a framework — you are reviewing the literature
-- Cite specific algorithms, platforms, companies, and publications from the research data
-- Mark places where citations are needed with [@citekey] placeholders
-- Generate actual ```mermaid code blocks with real data — not placeholder descriptions
-- Reference each figure in surrounding text ("As shown in Figure 1, ...")
-- Vary sentence structure and openings — read like a human scientist wrote it
+## Important
+- This is a REVIEW article surveying the field of personalized medicine. Do NOT describe a single framework as your own.
+- Use real company names, product names, market data, and clinical trial results from the provided research
+- Do NOT use "our," "we," or "this paper" to describe a framework
+- Mark every factual claim that needs a citation with [@citekey]
+- Include [FIGURE: description] at natural insertion points where a chart, timeline, comparison, or diagram would help the reader
+- Reference each figure in surrounding text: "As shown in Figure 1, the market has grown..."
+- Write like a scientist reviewing their field critically, not a cheerleader
 - NO em dashes (—) anywhere
-- Keep each sentence under ~35 words
-- Output the complete paper in Markdown format with # section headings. Mermaid blocks render natively in many Markdown viewers."""
+- Keep each sentence under ~35 words. Break long ones.
+- Output the complete paper in Markdown format with # and ## section headings."""
 
