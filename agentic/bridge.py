@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import shlex
 import subprocess
 import sys
 import time
@@ -24,7 +23,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 TIMEOUT = 600  # seconds per agent call
 
 # DeepSeek API config
-DEEPSEEK_API_KEY = os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
 DEEPSEEK_BASE = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"  # v3-equivalent, fast and cheap
 
@@ -108,11 +107,10 @@ def _parse_claude_json(stdout: str) -> dict:
 
 def _call_claude(prompt: str, model: str) -> dict:
     """Call Claude via the `claude` CLI."""
-    cmd = f"claude -p {shlex.quote(prompt)} --bare --output-format json"
+    cmd = ["claude", "-p", prompt, "--bare", "--output-format", "json"]
     try:
         result = subprocess.run(
             cmd,
-            shell=True,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,
@@ -186,11 +184,10 @@ def _call_deepseek(prompt: str, system: Optional[str] = None) -> dict:
 
 def _call_gemini(prompt: str) -> dict:
     """Call Gemini via the `gemini` CLI."""
-    cmd = f"gemini -p {shlex.quote(prompt)} --approval-mode plan --skip-trust"
+    cmd = ["gemini", "-p", prompt, "--approval-mode", "plan", "--skip-trust"]
     try:
         result = subprocess.run(
             cmd,
-            shell=True,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,

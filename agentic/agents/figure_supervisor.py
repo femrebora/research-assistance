@@ -38,8 +38,11 @@ def run_figure_supervisor(state: dict) -> dict:
     updated_figures = []
     if isinstance(review, dict) and "figures" in review:
         for fr in review["figures"]:
-            idx = fr.get("index", 0)
-            if idx < len(figures):
+            try:
+                idx = int(fr.get("index", 0))
+            except (ValueError, TypeError):
+                continue
+            if 0 <= idx < len(figures):
                 f = dict(figures[idx])
                 f["review"] = fr
                 updated_figures.append(f)

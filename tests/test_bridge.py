@@ -40,10 +40,10 @@ class TestCallAgent:
     def test_call_agent_includes_system_prompt(self, mock_run):
         mock_run.return_value = type("R", (), {"stdout": "OK", "stderr": ""})()
         call_agent(prompt="What is 2+2?", model="claude", system="Be concise.")
-        # The command string is the first positional argument to subprocess.run
-        cmd_string = mock_run.call_args[0][0] if mock_run.call_args[0] else ""
+        # The command is now a list (shell=False)
+        cmd_list = mock_run.call_args[0][0] if mock_run.call_args[0] else []
+        cmd_string = " ".join(cmd_list)
         assert "Be concise" in cmd_string
-        assert mock_run.call_args[1]["shell"] is True
 
     def test_call_agent_unknown_model_raises(self):
         import pytest

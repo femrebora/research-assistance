@@ -77,7 +77,11 @@ def split_long_sentences(text: str, max_words: int = 35) -> str:
             continue
 
         # Prose paragraph: split into sentences and process
-        sentences = re.split(r"(?<=[.!?])\s+", stripped)
+        # Negative lookbehinds prevent splitting on abbreviations (e.g., i.e., et al., Fig.)
+        sentences = re.split(
+            r"(?<=[.!?])(?<!e\.g\.)(?<!i\.e\.)(?<!al\.)(?<!Fig\.)(?<!Eq\.)\s+",
+            stripped,
+        )
         processed = []
         for s in sentences:
             words = s.split()
@@ -193,7 +197,7 @@ def _em_dash_replacement(match: re.Match) -> str:
     pos = match.start()
 
     # Look at preceding/following chars
-    before = full[max(0, pos - 30):pos]
+    before = full[max(0, pos - 120):pos]
 
     # If preceding text looks like a complete clause, use period. Otherwise comma.
     before_words = len(before.split())
