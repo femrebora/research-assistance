@@ -9,6 +9,8 @@ class PaperState(TypedDict):
     code_path: str
     user_summary: str
     output_dir: str
+    research_topic: str | None
+    research_data: str | None
     style_guide: str | None
     ai_tells: dict | None
     technical_report: str | None
@@ -35,6 +37,8 @@ def make_initial_state(
         code_path=code_path,
         user_summary=user_summary,
         output_dir=output_dir,
+        research_topic=None,
+        research_data=None,
         style_guide=None,
         ai_tells=None,
         technical_report=None,
