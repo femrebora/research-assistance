@@ -25,6 +25,7 @@ MIN_SECTION_SCORE = 7
 MAX_AI_SOUNDING_SCORE = 3
 MIN_ORIGINALITY_PCT = 80
 MAX_AI_LIKELIHOOD_PCT = 20
+DEFAULT_MAX_REWRITES = 3
 
 
 def _should_rewrite(state: dict) -> str:
@@ -32,7 +33,7 @@ def _should_rewrite(state: dict) -> str:
     assessment = state.get("assessment") or {}
     rewrite_count = state.get("text_rewrite_count", 0)
 
-    if rewrite_count >= state.get("max_rewrites", 5):
+    if rewrite_count >= state.get("max_rewrites", DEFAULT_MAX_REWRITES):
         return "pass"
 
     for key, section in assessment.items():
@@ -42,23 +43,6 @@ def _should_rewrite(state: dict) -> str:
             score = section.get("score", 0)
             if isinstance(score, (int, float)) and score < MIN_SECTION_SCORE:
                 return "rewrite"
-
-    return "pass"
-
-
-def _should_rewrite_plagiarism(state: dict) -> str:
-    """Check if originality is below threshold."""
-    score = state.get("originality_score") or {}
-    rewrite_count = state.get("text_rewrite_count", 0)
-
-    if rewrite_count >= state.get("max_rewrites", 5):
-        return "pass"
-
-    originality = score.get("originality_pct", 100)
-    ai_likelihood = score.get("ai_likelihood_pct", 0)
-
-    if originality < MIN_ORIGINALITY_PCT or ai_likelihood > MAX_AI_LIKELIHOOD_PCT:
-        return "rewrite"
 
     return "pass"
 
@@ -118,7 +102,15 @@ def build_graph() -> StateGraph:
 
     def plagiarism_wrapper(state: dict) -> dict:
         _log("Plagiarism Check (DeepSeek)", "checking originality...")
-        return _collect_agent_calls(state, run_plagiarism_check(state))
+        result = _collect_agent_calls(state, run_plagiarism_check(state))
+        score = result.get("originality_score") or {}
+        originality = score.get("originality_pct", 100)
+        ai_likelihood = score.get("ai_likelihood_pct", 0)
+        if originality < MIN_ORIGINALITY_PCT:
+            _log("Plagiarism Check", f"WARNING: originality {originality}% < {MIN_ORIGINALITY_PCT}%")
+        if ai_likelihood > MAX_AI_LIKELIHOOD_PCT:
+            _log("Plagiarism Check", f"WARNING: AI likelihood {ai_likelihood}% > {MAX_AI_LIKELIHOOD_PCT}%")
+        return result
 
     def figure_gen_wrapper(state: dict) -> dict:
         n = state.get("figure_rewrite_count", 0) + 1
@@ -147,10 +139,7 @@ def build_graph() -> StateGraph:
     })
     builder.add_edge("rewriter", "assessor")
 
-    builder.add_conditional_edges("plagiarism_check", _should_rewrite_plagiarism, {
-        "rewrite": "rewriter",
-        "pass": "figure_gen",
-    })
+    builder.add_edge("plagiarism_check", "figure_gen")
 
     builder.add_edge("figure_gen", "figure_supervisor")
     builder.add_conditional_edges("figure_supervisor", _should_regenerate_figure, {

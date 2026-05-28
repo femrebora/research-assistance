@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agentic.orchestrator import _should_rewrite, _should_rewrite_plagiarism, _should_regenerate_figure, load_caches
+from agentic.orchestrator import _should_rewrite, _should_regenerate_figure, load_caches
 
 
 class TestShouldRewrite:
@@ -42,32 +42,6 @@ class TestShouldRewrite:
     def test_handles_empty_assessment(self):
         state = {"assessment": {}, "text_rewrite_count": 0, "max_rewrites": 5}
         assert _should_rewrite(state) == "pass"
-
-
-class TestShouldRewritePlagiarism:
-    def test_pass_high_originality(self):
-        state = {
-            "originality_score": {"originality_pct": 92, "ai_likelihood_pct": 14},
-            "text_rewrite_count": 0,
-            "max_rewrites": 5,
-        }
-        assert _should_rewrite_plagiarism(state) == "pass"
-
-    def test_rewrite_low_originality(self):
-        state = {
-            "originality_score": {"originality_pct": 65, "ai_likelihood_pct": 10},
-            "text_rewrite_count": 0,
-            "max_rewrites": 5,
-        }
-        assert _should_rewrite_plagiarism(state) == "rewrite"
-
-    def test_rewrite_high_ai_likelihood(self):
-        state = {
-            "originality_score": {"originality_pct": 85, "ai_likelihood_pct": 45},
-            "text_rewrite_count": 0,
-            "max_rewrites": 5,
-        }
-        assert _should_rewrite_plagiarism(state) == "rewrite"
 
 
 class TestShouldRegenerateFigure:

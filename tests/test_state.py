@@ -49,7 +49,7 @@ class TestPaperState:
         required_keys = {
             "code_path", "user_summary", "output_dir",
             "style_guide", "ai_tells", "technical_report",
-            "draft", "assessment", "originality_score",
+            "benchmark_data", "draft", "assessment", "originality_score",
             "figures", "text_rewrite_count", "figure_rewrite_count",
             "max_rewrites", "agent_calls",
         }

@@ -34,25 +34,62 @@ EN_DASH_RANGE = re.compile(r"(\d+)\s*[–-]\s*(\d+)")
 LOWERCASE_START = re.compile(r"^([a-z])")
 
 
+def _is_markdown_heading(line: str) -> bool:
+    """Check if a line is a markdown heading or horizontal rule."""
+    return bool(re.match(r"^#{1,6}\s", line) or re.match(r"^[-*_]{3,}\s*$", line))
+
+
 def split_long_sentences(text: str, max_words: int = 35) -> str:
     """Split sentences over max_words at natural break points.
 
-    Uses conjunction boundaries and comma breaks. Preserves citations
-    and figure markers. Won't split if no clean break exists (avoids fragments).
+    Paragraph-aware: preserves markdown headings, blank lines, code blocks,
+    and paragraph structure. Only splits within prose paragraphs.
     """
-    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-    result = []
+    # Split into markdown blocks (paragraphs, headings, code fences)
+    blocks = re.split(r"(\n{2,})", text)
+    result_parts = []
 
-    for s in sentences:
-        words = s.split()
-        if len(words) <= max_words:
-            result.append(s)
+    for block in blocks:
+        if not block.strip():
+            result_parts.append(block)
             continue
 
-        parts = _split_one_sentence(s, max_words)
-        result.extend(parts)
+        # Preserve blank-line separators as-is
+        if re.match(r"^\n{2,}$", block):
+            result_parts.append(block)
+            continue
 
-    return " ".join(result)
+        stripped = block.strip()
+
+        # Preserve code blocks
+        if stripped.startswith("```"):
+            result_parts.append(block)
+            continue
+
+        # Preserve markdown headings
+        if _is_markdown_heading(stripped):
+            result_parts.append(block)
+            continue
+
+        # Preserve table rows and list items
+        if re.match(r"^\s*[\|\-\*\+]", stripped):
+            result_parts.append(block)
+            continue
+
+        # Prose paragraph: split into sentences and process
+        sentences = re.split(r"(?<=[.!?])\s+", stripped)
+        processed = []
+        for s in sentences:
+            words = s.split()
+            if len(words) <= max_words:
+                processed.append(s)
+                continue
+            parts = _split_one_sentence(s, max_words)
+            processed.extend(parts)
+
+        result_parts.append(" ".join(processed))
+
+    return "".join(result_parts)
 
 
 def _split_one_sentence(sentence: str, max_words: int) -> list[str]:

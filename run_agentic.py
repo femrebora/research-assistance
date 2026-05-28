@@ -28,7 +28,7 @@ from common import THESIS_ROOT
 @click.option("--output", "-o", default=str(THESIS_ROOT / "output"),
               help="Output directory for generated paper.")
 @click.option("--min-score", default=7, type=int, help="Minimum section score (1-10).")
-@click.option("--max-rewrites", default=5, type=int, help="Max rewrite cycles per loop.")
+@click.option("--max_rewrites", default=3, type=int, help="Max rewrite cycles per loop.")
 @click.option("--refresh-style", is_flag=True, help="Regenerate the academic style guide cache.")
 @click.option("--refresh-artifacts", is_flag=True, help="Regenerate the AI artifacts cache.")
 @click.option("--ui", "launch_ui", is_flag=True, help="Launch the Streamlit web UI.")

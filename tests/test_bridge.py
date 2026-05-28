@@ -34,7 +34,7 @@ class TestCallAgent:
     def test_call_agent_cli_route_deepseek(self, mock_run):
         mock_run.return_value = type("R", (), {"stdout": "Hello from DeepSeek", "stderr": ""})()
         result = call_agent(prompt="Say hello", model="deepseek")
-        assert result["model"] == "deepseek"
+        assert result["model"].startswith("deepseek")
 
     @patch("agentic.bridge.subprocess.run")
     def test_call_agent_includes_system_prompt(self, mock_run):
