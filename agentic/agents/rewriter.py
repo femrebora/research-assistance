@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from agentic.bridge import call_agent
 from agentic.prompts.rewriter import SYSTEM, build_prompt
+from agentic.text_cleanup import cleanup_prose
 
 
 def run_rewriter(state: dict) -> dict:
@@ -14,9 +15,10 @@ def run_rewriter(state: dict) -> dict:
     )
 
     result = call_agent(prompt=prompt, model="claude", system=SYSTEM, temperature=0.3)
+    draft = cleanup_prose(result["text"])
 
     return {
-        "draft": result["text"],
+        "draft": draft,
         "text_rewrite_count": state.get("text_rewrite_count", 0) + 1,
         "agent_calls": [{
             "agent": "rewriter",

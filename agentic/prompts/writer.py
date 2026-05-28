@@ -25,7 +25,8 @@ WRITING PRINCIPLES:
 - Vary sentence openings and lengths"""
 
 def build_prompt(technical_report: str, style_guide: str, user_summary: str,
-                  rag_context: str = "", ai_tells: dict | None = None) -> str:
+                  rag_context: str = "", ai_tells: dict | None = None,
+                  benchmark_data: str = "") -> str:
     rag_section = ""
     if rag_context:
         rag_section = f"""
@@ -46,6 +47,12 @@ Formulaic structures to avoid: {'; '.join(structures[:10])}
 AI sentence patterns to avoid: {'; '.join(patterns[:10])}
 """
 
+    benchmark_section = ""
+    if benchmark_data:
+        benchmark_section = f"""
+{benchmark_data}
+"""
+
     return f"""Write a complete academic paper based on the materials below.
 
 ## Author's Project Summary
@@ -53,7 +60,7 @@ AI sentence patterns to avoid: {'; '.join(patterns[:10])}
 
 ## Technical Report (from code analysis)
 {technical_report}
-
+{benchmark_section}
 ## Style Guide (academic writing conventions for this domain)
 {style_guide}
 {ai_avoid_section}

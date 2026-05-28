@@ -12,6 +12,7 @@ class PaperState(TypedDict):
     style_guide: str | None
     ai_tells: dict | None
     technical_report: str | None
+    benchmark_data: str | None
     draft: str | None
     assessment: dict | None
     originality_score: dict | None
@@ -37,6 +38,7 @@ def make_initial_state(
         style_guide=None,
         ai_tells=None,
         technical_report=None,
+        benchmark_data=None,
         draft=None,
         assessment=None,
         originality_score=None,
