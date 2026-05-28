@@ -17,7 +17,7 @@ import os
 import sys
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+import gzip
 
 from mcp.server.fastmcp import FastMCP
 
@@ -25,6 +25,16 @@ mcp = FastMCP("Google-Quality Search")
 
 MAX_RESULTS = 10
 TIMEOUT = 15
+
+
+def _fetch_json(url: str, headers: dict) -> dict:
+    """Fetch and parse JSON, handling gzip encoding."""
+    req = Request(url, headers=headers)
+    with urlopen(req, timeout=TIMEOUT) as resp:
+        raw = resp.read()
+        if raw[:2] == b'\x1f\x8b':
+            raw = gzip.decompress(raw)
+        return json.loads(raw.decode("utf-8"))
 
 
 # ── Brave Search (primary — free tier, 2000/mo) ──────────────────────────
@@ -37,16 +47,14 @@ def _search_brave(query: str, count: int = MAX_RESULTS) -> list[dict]:
 
     try:
         params = f"q={quote(query)}&count={count}"
-        req = Request(
+        data = _fetch_json(
             f"https://api.search.brave.com/res/v1/web/search?{params}",
-            headers={
+            {
                 "Accept": "application/json",
                 "Accept-Encoding": "gzip",
                 "X-Subscription-Token": api_key,
             },
         )
-        with urlopen(req, timeout=TIMEOUT) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
 
         results = []
         for r in (data.get("web", {}).get("results", []) or [])[:count]:
@@ -59,16 +67,14 @@ def _search_brave(query: str, count: int = MAX_RESULTS) -> list[dict]:
         # Also get news if available
         try:
             news_params = f"q={quote(query)}&count=3"
-            news_req = Request(
+            news_data = _fetch_json(
                 f"https://api.search.brave.com/res/v1/news/search?{news_params}",
-                headers={
+                {
                     "Accept": "application/json",
                     "Accept-Encoding": "gzip",
                     "X-Subscription-Token": api_key,
                 },
             )
-            with urlopen(news_req, timeout=TIMEOUT) as resp:
-                news_data = json.loads(resp.read().decode("utf-8"))
             for r in (news_data.get("results", []) or [])[:3]:
                 results.append({
                     "title": f"[News] {r.get('title', '')}",
@@ -158,16 +164,14 @@ def search_news(query: str, count: int = 5) -> str:
     if api_key:
         try:
             params = f"q={quote(query)}&count={count}"
-            req = Request(
+            data = _fetch_json(
                 f"https://api.search.brave.com/res/v1/news/search?{params}",
-                headers={
+                {
                     "Accept": "application/json",
                     "Accept-Encoding": "gzip",
                     "X-Subscription-Token": api_key,
                 },
             )
-            with urlopen(req, timeout=TIMEOUT) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
 
             results = []
             for r in (data.get("results", []) or [])[:count]:
