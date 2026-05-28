@@ -1,2 +1,10 @@
 # pyproject.toml is the source of truth for dependencies.
 # Install with:  pip install -e ".[dev,desktop]"
+#
+# PaperForge additional dependencies:
+langgraph>=0.2.0
+streamlit>=1.57.0
+pytest>=8.0.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+ddgs>=0.1.0

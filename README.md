@@ -50,6 +50,54 @@ The dashboard at `http://127.0.0.1:5050` gives you:
 - **Sessions** — browse, view, and delete saved Q&A
 - **Index** — background indexing with progress tracking
 - **Tools** — every CLI tool below is also available as a form at `/tools/<name>`
+- **PaperForge** — generate papers from code or topics with live SSE progress
+  (`from agentic.web_server import paperforge_bp; app.register_blueprint(paperforge_bp)`)
+
+## PaperForge — Multi-Agent Paper Generation
+
+PaperForge generates complete academic papers from a codebase or a research topic using 7 specialized AI agents across 3 LLM backends.
+
+| Script | Purpose |
+|--------|---------|
+| `run_agentic.py` | **Code → Paper** — generate an academic paper from a codebase |
+| `run_review.py` | **Topic → Review Article** — autonomous web research + review generation |
+| `quick_ai_score.py` | **AI Text Detection** — 7 mechanical checks, 0-10 score, no LLM calls |
+
+### Pipeline
+
+```
+Codebase → Code Analyst (Gemini) → Writer (DeepSeek) → Assessor (Claude)
+                                        ↓                    ↓
+                                  Complete draft      Section scores
+                                                              ↓
+                                              Rewriter (Claude) ←──┘
+                                              (loops ≤3× until score ≥7)
+                                                              ↓
+                                              Plagiarism Check (report-only)
+                                                              ↓
+                                              Figure Gen (Gemini) → Supervisor
+```
+
+For review articles, `Code Analyst` is replaced by `Literature Researcher` which searches **OpenAlex** (academic papers) and **DuckDuckGo** (companies, market data) autonomously.
+
+### Usage
+
+```bash
+# One-time cache setup
+./run_agentic.py --refresh-style --domain bioinformatics
+./run_agentic.py --refresh-artifacts
+
+# Generate a paper from a codebase
+./run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
+
+# Generate a review article (autonomous web research!)
+./run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
+
+# Check a paper for AI-generated patterns
+./quick_ai_score.py paper.md --json
+```
+
+**Expected results:** AI score <2/10 (human-like), all sections 7-9/10, $1.50-2.00 per run, zero em dashes.
 
 ## CLI (optional)
 

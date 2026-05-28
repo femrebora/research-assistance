@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaperForge — Paper Generation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+        .pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+        .pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+        .progress-line { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 antialiased font-sans">
+    <div class="max-w-4xl mx-auto px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <a href="/" class="text-sm text-indigo-600 hover:text-indigo-800">&larr; Back to Research Assistant</a>
+            <h1 class="text-2xl font-semibold text-slate-900 mt-2">PaperForge</h1>
+            <p class="text-sm text-slate-500 mt-1">Multi-agent academic paper generation from your codebase</p>
+        </div>
+
+        <!-- Form -->
+        <div id="paperforge-form" class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+            <form id="run-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Code path <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="code_path" required
+                           placeholder="/path/to/your/project"
+                           class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                    <p class="text-xs text-slate-400 mt-1">Path to the codebase to analyze and write about.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">
+                        Project summary <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="summary" required rows="3"
+                              placeholder="Brief description of what your project does..."
+                              class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Output directory</label>
+                        <input type="text" name="output_dir"
+                               placeholder="~/thesis/output/paper-name"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                        <p class="text-xs text-slate-400 mt-1">Defaults to ~/thesis/output/paperforge-&lt;id&gt;</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Max rewrites</label>
+                        <select name="max_rewrites"
+                                class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
+                            <option value="1">1 — fast, lower quality</option>
+                            <option value="2">2 — balanced</option>
+                            <option value="3" selected>3 — best quality (recommended)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="submit"
+                            id="submit-btn"
+                            class="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        Generate Paper
+                    </button>
+                    <p class="text-xs text-slate-400">Estimated: 3-5 minutes, ~$3-4</p>
+                </div>
+            </form>
+        </div>
+
+        <!-- Progress -->
+        <div id="progress-area" class="hidden bg-white rounded-lg border border-slate-200 p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-slate-900">Pipeline Progress</h3>
+                <span id="progress-status" class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Starting...</span>
+            </div>
+            <div id="progress-lines" class="space-y-1.5 mb-4 max-h-64 overflow-y-auto text-sm font-mono">
+            </div>
+            <div id="progress-indicator" class="flex items-center gap-1.5 text-sm text-slate-400">
+                <span>Running</span>
+                <span class="pulse-dot">.</span><span class="pulse-dot">.</span><span class="pulse-dot">.</span>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results-area" class="hidden space-y-6">
+            <!-- Summary card -->
+            <div id="results-summary" class="bg-white rounded-lg border border-slate-200 p-6">
+            </div>
+
+            <!-- Assessment -->
+            <div id="assessment-display" class="bg-white rounded-lg border border-slate-200 p-6">
+            </div>
+
+            <!-- Paper preview -->
+            <div id="paper-preview" class="bg-white rounded-lg border border-slate-200 p-6">
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const form = document.getElementById('run-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const progressArea = document.getElementById('progress-area');
+    const progressLines = document.getElementById('progress-lines');
+    const progressStatus = document.getElementById('progress-status');
+    const progressIndicator = document.getElementById('progress-indicator');
+    const resultsArea = document.getElementById('results-area');
+    const errorArea = document.getElementById('error-area');
+
+    const AGENT_COLORS = {
+        'Code Analyst': 'text-blue-600',
+        'Writer': 'text-purple-600',
+        'Assessor': 'text-emerald-600',
+        'Rewriter': 'text-amber-600',
+        'Plagiarism Check': 'text-slate-600',
+        'Figure Gen': 'text-pink-600',
+        'Figure Supervisor': 'text-teal-600',
+    };
+
+    function agentColor(agent) {
+        for (const [key, cls] of Object.entries(AGENT_COLORS)) {
+            if (agent.includes(key)) return cls;
+        }
+        return 'text-slate-500';
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Starting pipeline...';
+        progressLines.innerHTML = '';
+        resultsArea.classList.add('hidden');
+        progressArea.classList.remove('hidden');
+
+        try {
+            const resp = await fetch('/paperforge/run', { method: 'POST', body: data });
+            const json = await resp.json();
+
+            if (json.error) {
+                showError(json.error);
+                return;
+            }
+
+            progressStatus.textContent = 'Running';
+            subscribeProgress(json.job_id);
+        } catch (err) {
+            showError('Failed to start pipeline: ' + err.message);
+        }
+    });
+
+    function subscribeProgress(jobId) {
+        const evtSource = new EventSource('/paperforge/progress/' + jobId);
+
+        evtSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'status' || data.type === 'agent') {
+                const line = document.createElement('div');
+                line.className = 'progress-line text-sm';
+                if (data.agent) {
+                    line.innerHTML = `<span class="${agentColor(data.agent)}">[${data.agent}]</span> <span class="text-slate-500">${data.message || ''}</span>`;
+                } else {
+                    line.innerHTML = `<span class="text-slate-400">${data.message}</span>`;
+                }
+                progressLines.appendChild(line);
+                progressLines.scrollTop = progressLines.scrollHeight;
+            }
+
+            if (data.type === 'complete') {
+                evtSource.close();
+                progressIndicator.classList.add('hidden');
+                progressStatus.textContent = 'Complete';
+                progressStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
+                showResults(data.results);
+            }
+
+            if (data.type === 'error') {
+                evtSource.close();
+                showError(data.message || 'Pipeline failed');
+            }
+
+            if (data.type === 'done') {
+                evtSource.close();
+                if (data.status === 'error') {
+                    showError('Pipeline failed. Check server logs.');
+                }
+            }
+        };
+
+        evtSource.onerror = () => {
+            evtSource.close();
+        };
+    }
+
+    function showResults(results) {
+        resultsArea.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate Paper';
+
+        const summary = document.getElementById('results-summary');
+        summary.innerHTML = `
+            <h3 class="font-semibold text-slate-900 mb-3">Run Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div><p class="text-xs text-slate-400">Agent calls</p><p class="text-lg font-semibold">${results.agent_calls}</p></div>
+                <div><p class="text-xs text-slate-400">Text rewrites</p><p class="text-lg font-semibold">${results.text_rewrites}</p></div>
+                <div><p class="text-xs text-slate-400">Figure rewrites</p><p class="text-lg font-semibold">${results.figure_rewrites}</p></div>
+                <div><p class="text-xs text-slate-400">Est. cost</p><p class="text-lg font-semibold">$${results.estimated_cost}</p></div>
+            </div>
+            <div class="mt-4 flex gap-3 flex-wrap">
+                <a href="/paperforge/download/${getJobId()}/paper.md"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+                    Download paper.md
+                </a>
+                <span class="text-xs text-slate-400 self-center">Output: ${results.output_dir}</span>
+            </div>
+        `;
+
+        if (results.assessment) {
+            const assessDiv = document.getElementById('assessment-display');
+            let rows = '';
+            for (const [section, s] of Object.entries(results.assessment)) {
+                if (typeof s === 'object' && s.score !== undefined) {
+                    const scoreColor = s.score >= 7 ? 'text-emerald-600' : s.score >= 5 ? 'text-amber-600' : 'text-red-600';
+                    rows += `<tr><td class="py-1.5 pr-4 font-medium capitalize">${section}</td>
+                             <td class="py-1.5 pr-4 ${scoreColor} font-semibold">${s.score}/10</td>
+                             <td class="py-1.5 text-sm text-slate-500">AI: ${s.ai_score}/10</td>
+                             <td class="py-1.5 text-sm text-slate-500">${(s.critique || '').substring(0, 100)}</td></tr>`;
+                }
+            }
+            assessDiv.innerHTML = `
+                <h3 class="font-semibold text-slate-900 mb-3">Assessment</h3>
+                <table class="w-full text-sm"><tbody>${rows}</tbody></table>
+            `;
+        }
+
+        if (results.draft_preview) {
+            const preview = document.getElementById('paper-preview');
+            preview.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-slate-900">Paper Preview</h3>
+                </div>
+                <pre class="text-sm text-slate-600 whitespace-pre-wrap max-h-96 overflow-y-auto bg-slate-50 p-4 rounded">${escapeHtml(results.draft_preview)}</pre>
+            `;
+        }
+    }
+
+    function showError(msg) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate Paper';
+        progressIndicator.classList.add('hidden');
+        progressStatus.textContent = 'Error';
+        progressStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700';
+
+        const line = document.createElement('div');
+        line.className = 'text-sm text-red-600';
+        line.textContent = 'Error: ' + msg;
+        progressLines.appendChild(line);
+    }
+
+    function getJobId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('job') || '';
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    </script>
+</body>
+</html>
