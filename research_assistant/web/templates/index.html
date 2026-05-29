@@ -11,6 +11,25 @@
     </a>
 </div>
 
+<!-- Active project banner -->
+{% if active_project %}
+<div class="bg-white rounded-lg border border-slate-200 p-4 mb-6 flex items-start justify-between gap-4">
+    <div class="min-w-0">
+        <p class="text-[10px] uppercase tracking-wider text-indigo-500 mb-0.5">Active project</p>
+        <a href="/projects/{{ active_project.slug }}" class="font-semibold text-slate-900 hover:text-indigo-600">{{ active_project.title }}</a>
+        {% if active_project.research_question %}
+        <p class="text-sm text-slate-500 mt-0.5 truncate">{{ active_project.research_question }}</p>
+        {% endif %}
+    </div>
+    <a href="/projects" class="shrink-0 text-sm text-indigo-600 hover:underline">Switch →</a>
+</div>
+{% else %}
+<div class="bg-white rounded-lg border border-slate-200 p-4 mb-6 flex items-center justify-between gap-4">
+    <p class="text-sm text-slate-600">No active project yet — set one to tailor tools to your research question.</p>
+    <a href="/projects/new" class="shrink-0 text-sm font-medium text-indigo-600 hover:underline">Create project →</a>
+</div>
+{% endif %}
+
 <!-- Status cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-lg border border-slate-200 p-4">
@@ -66,6 +85,31 @@
     No index found. <a href="/index" class="underline font-medium">Index your Zotero PDFs</a> to enable RAG features.
 </div>
 {% endif %}
+
+<!-- Start writing: guided entry into the writing workflow -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <a href="/outline-recommender"
+       class="md:col-span-2 group bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-lg p-5 hover:shadow-md transition block">
+        <p class="text-[10px] uppercase tracking-wider text-indigo-100 mb-1">Start writing</p>
+        <h3 class="text-lg font-semibold">Recommend a paper outline</h3>
+        <p class="text-sm text-indigo-100 mt-1">
+            Turn a topic into a full, paper-type-aware structure — section purposes,
+            length targets, organizational variants, and evidence-coverage gaps.
+        </p>
+        <span class="inline-flex items-center gap-1 text-sm font-medium mt-3 group-hover:gap-2 transition-all">
+            Open recommender →
+        </span>
+    </a>
+    <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Then refine</p>
+        <ul class="space-y-1.5 text-sm">
+            <li><a href="/tools/outline" class="text-indigo-600 hover:underline">Section outline</a> <span class="text-slate-400">— flesh out one section</span></li>
+            <li><a href="/tools/ideas" class="text-indigo-600 hover:underline">Paragraph angles</a> <span class="text-slate-400">— brainstorm a paragraph</span></li>
+            <li><a href="/tools/critique" class="text-indigo-600 hover:underline">Draft critique</a> <span class="text-slate-400">— review a draft</span></li>
+            <li><a href="/peer-review" class="text-indigo-600 hover:underline">AI peer review</a> <span class="text-slate-400">— multi-model review</span></li>
+        </ul>
+    </div>
+</div>
 
 <!-- Quick ask -->
 <div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">

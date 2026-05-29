@@ -20,6 +20,7 @@ this interface.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from dataclasses import asdict, dataclass, field
@@ -182,8 +183,56 @@ def delete_project(slug: str) -> bool:
     path = _project_path(slug)
     if path.exists():
         path.unlink()
+        if get_active_slug() == slugify(slug):
+            _clear_active()
         return True
     return False
+
+
+# ── Active project ────────────────────────────────────────────────────────────
+#
+# A single "active" project drives the dashboard banner and pre-fills the
+# Outline Recommender. It is stored as one slug in a plain-text ``.active`` file
+# so it is shared between the CLI and the web layer without a database.
+
+
+_ACTIVE_FILE: Path = PROJECTS_DIR / ".active"
+
+
+def set_active_slug(slug: str) -> None:
+    """Mark a project as active. Raises ``FileNotFoundError`` if it is missing."""
+    safe = slugify(slug)
+    if get_project(safe) is None:
+        raise FileNotFoundError(f"Project '{safe}' not found.")
+    _ensure_dir()
+    _ACTIVE_FILE.write_text(safe, encoding="utf-8")
+
+
+def get_active_slug() -> str | None:
+    """Return the active project's slug, or ``None`` if none is set."""
+    try:
+        slug = _ACTIVE_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return slug or None
+
+
+def _clear_active() -> None:
+    with contextlib.suppress(OSError):
+        _ACTIVE_FILE.unlink()
+
+
+def get_active_project() -> Project | None:
+    """Return the active project. Falls back to the most recently updated
+    project when nothing is explicitly active, or ``None`` when there are no
+    projects at all."""
+    slug = get_active_slug()
+    if slug:
+        project = get_project(slug)
+        if project is not None:
+            return project
+    projects = list_projects()
+    return projects[0] if projects else None
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────

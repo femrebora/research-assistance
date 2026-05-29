@@ -68,10 +68,16 @@ def _safe_nl2br(text: str) -> str:
 
 @app.context_processor
 def _inject_nav():
-    """Make the tool catalog and active route available to every template."""
+    """Make the tool catalog, active route, and active project available to
+    every template."""
+    try:
+        active_project = projects_mod.get_active_project()
+    except Exception:
+        active_project = None
     return {
         "tool_groups": specs_by_category(),
         "active_route": request.path if request else "",
+        "active_project": active_project,
     }
 
 logger = logging.getLogger("research-assistant")
@@ -480,12 +486,44 @@ def index_page():
 # ── Generic tool routes (driven by tool_runner.TOOL_SPECS) ──────────────────
 
 
+@app.route("/outline-recommender", methods=["GET"])
+def outline_recommender_page():
+    """Guided front door for the Outline Recommender tool.
+
+    Renders the standard tool form pre-filled from the active project (topic ←
+    research question, discipline, citation style) and posts to the existing
+    generic runner at /tools/outline_recommend/run.
+    """
+    spec = get_spec("outline_recommend")
+    if spec is None:
+        return redirect(url_for("index"))
+    project = active_project_or_none()
+    prefill = {}
+    if project is not None:
+        prefill = {
+            "topic": project.research_question or project.title,
+            "discipline": project.discipline,
+        }
+    return render_template("outline_recommender.html", spec=spec, prefill=prefill,
+                           project=project)
+
+
+def active_project_or_none():
+    try:
+        return projects_mod.get_active_project()
+    except Exception:
+        return None
+
+
 @app.route("/tools/<name>", methods=["GET"])
 def tool_page(name: str):
     """Render the form for any CLI tool registered in TOOL_SPECS."""
     spec = get_spec(name)
     if spec is None:
         return f"Unknown tool '{name}'", 404
+    # The recommender has a dedicated, project-aware front door.
+    if name == "outline_recommend":
+        return redirect(url_for("outline_recommender_page"))
     return render_template("tools.html", spec=spec)
 
 
@@ -587,6 +625,17 @@ def projects_detail(slug: str):
 def projects_delete(slug: str):
     projects_mod.delete_project(slug)
     return redirect(url_for("projects_list"))
+
+
+@app.route("/projects/<slug>/activate", methods=["POST"])
+def projects_activate(slug: str):
+    """Mark a project as the active one (drives the dashboard banner and the
+    Outline Recommender pre-fill)."""
+    try:
+        projects_mod.set_active_slug(slug)
+    except FileNotFoundError:
+        return redirect(url_for("projects_list", error="Project not found"))
+    return redirect(request.referrer or url_for("projects_list"))
 
 
 @app.route("/orchestration")
