@@ -6,6 +6,7 @@ splits overlong sentences, fixes en dashes. Pure mechanical — no LLM calls.
 from __future__ import annotations
 
 import re
+
 # Conjunction break points: split BEFORE these (keeping them with the second clause)
 BREAK_BEFORE = re.compile(
     r"\s+(?=(?:which|while|where|whereas|although|though|because|since|unless|"

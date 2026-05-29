@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-slate-900">Workspace</h2>
+        <p class="text-sm text-slate-500 mt-1">Pick a project to open the three-pane workspace.</p>
+    </div>
+    <a href="/projects/new"
+       class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        + New project
+    </a>
+</div>
+
+{% if projects %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for p in projects %}
+    <a href="/workspace/{{ p.slug }}"
+       class="bg-white rounded-lg border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-sm transition">
+        <div class="flex items-start justify-between mb-1">
+            <h3 class="font-semibold text-slate-900">{{ p.title }}</h3>
+            <span class="text-xs text-slate-400">{{ (p.updated_at or p.created_at)[:10] }}</span>
+        </div>
+        {% if p.research_question %}
+        <p class="text-sm text-slate-600">{{ p.research_question }}</p>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg border border-dashed border-slate-300 p-8 text-center">
+    <p class="text-sm text-slate-600 mb-3">No projects yet.</p>
+    <a href="/projects/new" class="text-sm text-indigo-600 hover:underline">Create your first project →</a>
+</div>
+{% endif %}
+{% endblock %}

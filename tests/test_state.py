@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agentic.state import PaperState, make_initial_state
@@ -48,6 +49,7 @@ class TestPaperState:
         state = make_initial_state(code_path="/a", user_summary="b", output_dir="/c")
         required_keys = {
             "code_path", "user_summary", "output_dir",
+            "research_topic", "research_data",
             "style_guide", "ai_tells", "technical_report",
             "benchmark_data", "draft", "assessment", "originality_score",
             "figures", "text_rewrite_count", "figure_rewrite_count",

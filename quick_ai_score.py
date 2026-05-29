@@ -114,8 +114,8 @@ def _check_sentence_length(sentences: list[str]) -> dict:
     lengths = [len(s.split()) for s in sentences]
     avg_len = sum(lengths) / len(lengths)
     max_len = max(lengths)
-    over_35 = sum(1 for l in lengths if l > 35)
-    over_50 = sum(1 for l in lengths if l > 50)
+    over_35 = sum(1 for n in lengths if n > 35)
+    over_50 = sum(1 for n in lengths if n > 50)
     pct_over_35 = over_35 / len(lengths) * 100
 
     # Humans vary sentence length. AI tends toward uniform medium-long.
@@ -175,7 +175,7 @@ def _check_burstiness(sentences: list[str]) -> dict:
     if mean_len == 0:
         return {"score": 10, "verdict": "ai-like"}
 
-    variance = sum((l - mean_len) ** 2 for l in lengths) / len(lengths)
+    variance = sum((n - mean_len) ** 2 for n in lengths) / len(lengths)
     std_dev = variance ** 0.5
     cv = std_dev / mean_len
 
@@ -413,7 +413,7 @@ def main(file, as_json, ai_tells, verbose):
         _print_report(result, verbose)
 
 
-def _print_report(result: dict, verbose: bool = False) -> None:  # noqa: ARG001
+def _print_report(result: dict, verbose: bool = False) -> None:
     """Pretty-print the scorecard."""
     from rich.console import Console
     from rich.table import Table

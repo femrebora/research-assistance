@@ -34,11 +34,25 @@ from research_assistant.researcher import (
     list_sessions as list_research_sessions,
 )
 from research_assistant.researcher import save_session as save_research_session
+from research_assistant.web import settings_store
+from research_assistant.web.providers import (
+    api_provider_status,
+    cli_provider_status,
+    test_provider,
+)
 from research_assistant.web.tool_runner import (
     get_spec,
     run_tool,
     specs_by_category,
 )
+from research_assistant.workspace import defense as defense_mod
+from research_assistant.workspace import document as doc_mod
+from research_assistant.workspace import editor as editor_mod
+from research_assistant.workspace import library as library_mod
+from research_assistant.workspace import peer_review as peer_review_mod
+from research_assistant.workspace import projects as projects_mod
+from research_assistant.workspace import prompts_library as prompts_mod
+from research_assistant.workspace import telemetry as telemetry_mod
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(32).hex())
@@ -61,6 +75,25 @@ def _inject_nav():
     }
 
 logger = logging.getLogger("research-assistant")
+
+# PaperForge multi-agent pipeline UI (code->paper and topic->review).
+# Registered as a blueprint so /paperforge lives in the same app + nav.
+# Guarded: the core UI still loads if PaperForge's module is unavailable.
+try:
+    from agentic.web_server import paperforge_bp
+
+    app.register_blueprint(paperforge_bp)
+    PAPERFORGE_AVAILABLE = True
+except Exception as exc:  # keep the core UI usable regardless
+    PAPERFORGE_AVAILABLE = False
+    logger.warning("PaperForge UI unavailable: %s", exc)
+
+
+@app.context_processor
+def _inject_paperforge_flag():
+    """Expose PaperForge availability to every template (for the nav link)."""
+    return {"paperforge_available": PAPERFORGE_AVAILABLE}
+
 
 # Thread-safe background indexing state
 _index_lock = threading.Lock()
@@ -200,8 +233,8 @@ def _render_markdown_to_html(text: str) -> str:
             content = re.sub(
                 r'\[@([a-zA-Z][a-zA-Z0-9_:.-]*)\]|(?<!\w)@([a-zA-Z][a-zA-Z0-9_:.-]*)',
                 lambda m: (
-                    f'<code class="citekey">[@\\1]</code>' if m.group(1)
-                    else f'<code class="citekey">@\\2</code>'
+                    '<code class="citekey">[@\\1]</code>' if m.group(1)
+                    else '<code class="citekey">@\\2</code>'
                 ),
                 content,
             )
@@ -240,7 +273,21 @@ def index():
     index_data = _get_index_data()
     sessions = list_research_sessions()[:5]
     state = _get_index_state()
-    return render_template("index.html", index=index_data, sessions=sessions, models=MODELS, index_state=state)
+    api_providers = api_provider_status()
+    cli_providers = cli_provider_status()
+    api_ok = sum(1 for p in api_providers if p.configured)
+    cli_ok = sum(1 for p in cli_providers if p.found)
+    return render_template(
+        "index.html",
+        index=index_data,
+        sessions=sessions,
+        models=MODELS,
+        index_state=state,
+        api_providers=api_providers,
+        cli_providers=cli_providers,
+        api_ok=api_ok,
+        cli_ok=cli_ok,
+    )
 
 
 @app.route("/ask", methods=["GET", "POST"])
@@ -252,6 +299,14 @@ def ask():
     k = DEFAULT_K
     threshold = DEFAULT_THRESHOLD
     save_name = ""
+
+    # Pre-fill question from the prompt-library link, if present.
+    prompt_slug = request.args.get("prompt_slug", "").strip()
+    if prompt_slug and request.method == "GET":
+        prompt = prompts_mod.get_prompt(prompt_slug)
+        if prompt:
+            question = prompt.body
+            model = prompt.recommended_model if prompt.recommended_model in MODELS else model
 
     if request.method == "POST":
         question = request.form.get("question", "").strip()
@@ -455,6 +510,385 @@ def tool_run(name: str):
         spec=spec,
         module_name=module_name,
         argv_display=argv_display,
+    )
+
+
+# ── Workspace routes ────────────────────────────────────────────────────────
+
+
+@app.route("/projects")
+def projects_list():
+    """List all research projects."""
+    return render_template(
+        "projects.html",
+        projects=projects_mod.list_projects(),
+        flash_error=request.args.get("error"),
+    )
+
+
+@app.route("/projects/new", methods=["GET", "POST"])
+def projects_new():
+    """Create a new project."""
+    if request.method == "POST":
+        try:
+            project = projects_mod.create_project(
+                title=request.form.get("title", ""),
+                research_question=request.form.get("research_question", ""),
+                hypothesis=request.form.get("hypothesis", ""),
+                keywords=request.form.get("keywords", ""),
+                citation_style=request.form.get("citation_style", "APA"),
+                supervisor_notes=request.form.get("supervisor_notes", ""),
+                discipline=request.form.get("discipline", ""),
+            )
+            return redirect(url_for("projects_detail", slug=project.slug))
+        except (ValueError, FileExistsError) as exc:
+            return render_template(
+                "project_form.html",
+                project=None,
+                flash_error=str(exc),
+            )
+    return render_template("project_form.html", project=None)
+
+
+@app.route("/projects/<slug>", methods=["GET", "POST"])
+def projects_detail(slug: str):
+    """Edit an existing project."""
+    project = projects_mod.get_project(slug)
+    if project is None:
+        return redirect(url_for("projects_list", error="Project not found"))
+
+    if request.method == "POST":
+        try:
+            project = projects_mod.update_project(
+                slug,
+                research_question=request.form.get("research_question", ""),
+                hypothesis=request.form.get("hypothesis", ""),
+                keywords=request.form.get("keywords", ""),
+                citation_style=request.form.get("citation_style", "APA"),
+                supervisor_notes=request.form.get("supervisor_notes", ""),
+                discipline=request.form.get("discipline", ""),
+            )
+        except (ValueError, FileNotFoundError) as exc:
+            return render_template(
+                "project_form.html",
+                project=project,
+                flash_error=str(exc),
+                context_preview=projects_mod.project_context_block(project),
+            )
+
+    return render_template(
+        "project_form.html",
+        project=project,
+        context_preview=projects_mod.project_context_block(project),
+    )
+
+
+@app.route("/projects/<slug>/delete", methods=["POST"])
+def projects_delete(slug: str):
+    projects_mod.delete_project(slug)
+    return redirect(url_for("projects_list"))
+
+
+@app.route("/orchestration")
+def orchestration_dashboard():
+    """Model orchestration dashboard — totals, per-model, recent calls."""
+    window = _safe_int(request.args.get("window"), 30)
+    window = max(1, min(window, 365))
+    data = telemetry_mod.collect(window_days=window)
+    return render_template("orchestration.html", data=data)
+
+
+@app.route("/prompts")
+def prompts_page():
+    """Browse the curated prompt library."""
+    category = request.args.get("category") or None
+    prompts = prompts_mod.list_prompts(category)
+    return render_template(
+        "prompts.html",
+        prompts=prompts,
+        categories=prompts_mod.categories_with_counts(),
+        active_category=category,
+    )
+
+
+_DEFAULT_PEER_ROLES = ("structural", "methodology", "citation")
+
+
+@app.route("/peer-review", methods=["GET", "POST"])
+def peer_review_page():
+    """Multi-model AI peer review."""
+    roles = peer_review_mod.available_roles()
+    projects = projects_mod.list_projects()
+    draft = ""
+    selected_roles = list(_DEFAULT_PEER_ROLES)
+    model_overrides: dict[str, str] = {r.key: r.default_model for r in roles}
+    synthesis_model = "claude"
+    selected_project = ""
+    report = None
+    flash_error = None
+
+    if request.method == "POST":
+        draft = request.form.get("draft", "").strip()
+        selected_roles = request.form.getlist("roles") or list(_DEFAULT_PEER_ROLES)
+        synthesis_model = request.form.get("synthesis_model", "").strip() or None
+        selected_project = request.form.get("project_slug", "").strip()
+        model_overrides = {
+            r.key: request.form.get(f"model_{r.key}", r.default_model) for r in roles
+        }
+        try:
+            project_obj = (
+                projects_mod.get_project(selected_project) if selected_project else None
+            )
+            report = peer_review_mod.run_peer_review(
+                draft,
+                roles=tuple(selected_roles),
+                model_overrides=model_overrides,
+                synthesis_model=synthesis_model or None,
+                project=project_obj,
+            )
+        except Exception as exc:
+            flash_error = str(exc)
+
+    return render_template(
+        "peer_review.html",
+        roles=roles,
+        models=MODELS,
+        projects=projects,
+        draft=draft,
+        selected_roles=selected_roles,
+        model_overrides=model_overrides,
+        synthesis_model=synthesis_model or "",
+        selected_project=selected_project,
+        report=report,
+        flash_error=flash_error,
+    )
+
+
+# ── Three-pane workspace ────────────────────────────────────────────────────
+
+
+_QUICK_PROMPTS: tuple[tuple[str, str, str], ...] = (
+    (
+        "tighten",
+        "Tighten prose, keep meaning",
+        "Tighten the entire document for academic tone: remove filler, "
+        "prefer concrete verbs, do not add new claims or citations, keep "
+        "all existing references in place.",
+    ),
+    (
+        "expand-methods",
+        "Expand the Methods section",
+        "Expand the Methods section with a brief sample-size justification "
+        "and a paragraph on threats to validity. Use the selected source "
+        "PDFs as evidence. Do not invent citations.",
+    ),
+    (
+        "lit-summary",
+        "Summarise selected PDFs into the Introduction",
+        "Summarise the selected source PDFs into 2–3 paragraphs that fit "
+        "at the end of the Introduction. Mark each claim with the source "
+        "filename in brackets, e.g. [SourceA.pdf]. Do not invent results.",
+    ),
+    (
+        "add-limitations",
+        "Add a Limitations subsection to Discussion",
+        "Add a `### Limitations` subsection at the end of the Discussion "
+        "section with 3 honest limitations and how a follow-up could "
+        "address each one. Do not weaken the main findings elsewhere.",
+    ),
+    (
+        "abstract",
+        "Draft an Abstract from the current document",
+        "Rewrite the Abstract section based on what is currently in the "
+        "rest of the document. Keep it under 250 words. Do not introduce "
+        "claims that are not already supported elsewhere in the document.",
+    ),
+)
+
+
+@app.route("/workspace")
+def workspace_index():
+    """Pick a project to open in the three-pane workspace."""
+    return render_template(
+        "workspace_index.html",
+        projects=projects_mod.list_projects(),
+    )
+
+
+@app.route("/workspace/<slug>", methods=["GET", "POST"])
+def workspace_detail(slug: str):
+    """Three-pane workspace: project + PDFs (left), document + prompt (center), telemetry (right)."""
+    project = projects_mod.get_project(slug)
+    if project is None:
+        return redirect(url_for("workspace_index"))
+
+    try:
+        document = doc_mod.load(slug)
+    except FileNotFoundError:
+        return redirect(url_for("workspace_index"))
+
+    pdfs = library_mod.list_pdfs()
+    pdf_root = str(library_mod.configured_root())
+
+    outcome = None
+    flash_error = None
+    pending_instruction = ""
+    selected_model = "sonnet"
+
+    if request.method == "POST":
+        instruction = request.form.get("instruction", "").strip()
+        pending_instruction = instruction
+        selected_model = request.form.get("model", selected_model)
+        sources_csv = request.form.get("sources_csv", "")
+        sources = tuple(
+            line.strip() for line in sources_csv.splitlines() if line.strip()
+        )
+
+        if not instruction:
+            flash_error = "Tell the AI what to change before applying an edit."
+        else:
+            outcome = editor_mod.apply_edit(
+                current_document=document.content,
+                instruction=instruction,
+                sources=sources,
+                model=selected_model,
+                project=project,
+            )
+            if outcome.error:
+                flash_error = outcome.error
+            elif outcome.new_document.strip():
+                document = doc_mod.save(slug, outcome.new_document)
+
+    quick_prompts = [(slug_, label) for slug_, label, _ in _QUICK_PROMPTS]
+    quick_prompts_map = {slug_: body for slug_, _, body in _QUICK_PROMPTS}
+
+    telemetry_data = telemetry_mod.collect(window_days=30, recent_limit=8)
+
+    return render_template(
+        "workspace.html",
+        project=project,
+        document=document,
+        pdfs=pdfs,
+        pdf_root=pdf_root,
+        models=MODELS,
+        selected_model=selected_model,
+        outcome=outcome,
+        flash_error=flash_error,
+        pending_instruction=pending_instruction,
+        quick_prompts=quick_prompts,
+        quick_prompts_map=quick_prompts_map,
+        telemetry=telemetry_data,
+    )
+
+
+@app.route("/workspace/<slug>/save", methods=["POST"])
+def workspace_save(slug: str):
+    """Manual save from the editor textarea."""
+    if projects_mod.get_project(slug) is None:
+        return redirect(url_for("workspace_index"))
+    content = request.form.get("content", "")
+    doc_mod.save(slug, content)
+    return redirect(url_for("workspace_detail", slug=slug))
+
+
+@app.route("/workspace/<slug>/undo", methods=["POST"])
+def workspace_undo(slug: str):
+    """Revert the last save (text edit or AI edit)."""
+    if projects_mod.get_project(slug) is None:
+        return redirect(url_for("workspace_index"))
+    doc_mod.undo(slug)
+    return redirect(url_for("workspace_detail", slug=slug))
+
+
+@app.route("/defense", methods=["GET", "POST"])
+def defense_page():
+    """Thesis defense simulator."""
+    personas = defense_mod.available_personas()
+    projects = projects_mod.list_projects()
+    material = ""
+    selected_persona = "strict-reviewer"
+    selected_model = "claude"
+    count = 8
+    selected_project = ""
+    result = None
+    flash_error = None
+
+    if request.method == "POST":
+        material = request.form.get("material", "").strip()
+        selected_persona = request.form.get("persona", selected_persona)
+        selected_model = request.form.get("model", selected_model)
+        count = _safe_int(request.form.get("count"), count)
+        selected_project = request.form.get("project_slug", "").strip()
+        try:
+            project_obj = (
+                projects_mod.get_project(selected_project) if selected_project else None
+            )
+            result = defense_mod.run_defense(
+                material,
+                persona=selected_persona,
+                model=selected_model,
+                count=count,
+                project=project_obj,
+            )
+        except Exception as exc:
+            flash_error = str(exc)
+
+    return render_template(
+        "defense.html",
+        personas=personas,
+        models=MODELS,
+        projects=projects,
+        material=material,
+        selected_persona=selected_persona,
+        selected_model=selected_model,
+        count=count,
+        selected_project=selected_project,
+        result=result,
+        flash_error=flash_error,
+    )
+
+
+# ── Providers + Settings routes ───────────────────────────────────────────────
+
+
+@app.route("/providers")
+def providers_page():
+    """Show API-key and CLI provider health; allow per-provider test runs."""
+    return render_template(
+        "providers.html",
+        cli_providers=cli_provider_status(),
+        api_providers=api_provider_status(),
+        models=MODELS,
+    )
+
+
+@app.route("/providers/test", methods=["POST"])
+def providers_test():
+    """HTMX endpoint: round-trip a tiny prompt through the chosen alias."""
+    alias = request.form.get("alias", "").strip()
+    result = test_provider(alias)
+    return render_template("_provider_test.html", result=result)
+
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings_page():
+    """Read-only secret status + editable paths/CLI config written back to .env."""
+    flash_error = None
+    flash_ok = None
+    if request.method == "POST":
+        try:
+            path = settings_store.save(request.form.to_dict())
+            flash_ok = f"Saved to {path}. Restart ra-web for changes to take full effect."
+        except (ValueError, OSError) as exc:
+            flash_error = str(exc)
+
+    return render_template(
+        "settings.html",
+        secrets=settings_store.secret_status(),
+        fields=settings_store.editable_values(),
+        env_file=str(settings_store.env_path()),
+        flash_error=flash_error,
+        flash_ok=flash_ok,
     )
 
 

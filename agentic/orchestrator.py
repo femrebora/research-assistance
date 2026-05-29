@@ -1,25 +1,26 @@
 """LangGraph orchestrator — compiles the paper generation state machine."""
 from __future__ import annotations
 
+import contextlib
 import json
+from typing import TYPE_CHECKING
 
-from langgraph.graph import StateGraph, END
+if TYPE_CHECKING:
+    from langgraph.graph import StateGraph
 
-from agentic.state import PaperState
 from agentic.agents import (
-    run_code_analyst,
-    run_style_researcher,
-    run_ai_artifact_detector,
-    run_writer,
     run_assessor,
-    run_rewriter,
-    run_plagiarism_check,
+    run_code_analyst,
     run_figure_gen,
     run_figure_supervisor,
+    run_plagiarism_check,
+    run_rewriter,
+    run_writer,
 )
-from agentic.bridge import is_cache_fresh, load_cache
-from agentic.agents.style_researcher import STYLE_CACHE_PATH
 from agentic.agents.ai_artifact_detector import TELLS_CACHE_PATH
+from agentic.agents.style_researcher import STYLE_CACHE_PATH
+from agentic.bridge import is_cache_fresh, load_cache
+from agentic.state import PaperState
 
 MIN_SECTION_SCORE = 7
 MAX_AI_SOUNDING_SCORE = 3
@@ -81,6 +82,8 @@ def _log(agent: str, msg: str = "") -> None:
 
 def build_graph() -> StateGraph:
     """Build and compile the paper generation state machine."""
+    from langgraph.graph import END, StateGraph  # lazy — langgraph is an optional PaperForge dep
+
     builder = StateGraph(PaperState)
 
     def code_analyst_wrapper(state: dict) -> dict:
@@ -97,7 +100,7 @@ def build_graph() -> StateGraph:
 
     def rewriter_wrapper(state: dict) -> dict:
         n = state.get("text_rewrite_count", 0) + 1
-        _log(f"Rewriter (Claude)", f"revision #{n}...")
+        _log("Rewriter (Claude)", f"revision #{n}...")
         return _collect_agent_calls(state, run_rewriter(state))
 
     def plagiarism_wrapper(state: dict) -> dict:
@@ -114,7 +117,7 @@ def build_graph() -> StateGraph:
 
     def figure_gen_wrapper(state: dict) -> dict:
         n = state.get("figure_rewrite_count", 0) + 1
-        _log(f"Figure Gen (Gemini)", f"generating figures (#{n})...")
+        _log("Figure Gen (Gemini)", f"generating figures (#{n})...")
         return _collect_agent_calls(state, run_figure_gen(state))
 
     def figure_supervisor_wrapper(state: dict) -> dict:
@@ -150,6 +153,76 @@ def build_graph() -> StateGraph:
     return builder.compile()
 
 
+def build_review_graph() -> StateGraph:
+    """Build the review-article pipeline (autonomous web research -> paper).
+
+    Same downstream stages as `build_graph`, but the Code Analyst entry node is
+    replaced by a Literature Researcher that searches the web for the topic in
+    `state["research_topic"]`.
+    """
+    from langgraph.graph import END, StateGraph  # lazy — langgraph is an optional PaperForge dep
+
+    from agentic.agents.literature_researcher import run_literature_researcher
+
+    builder = StateGraph(PaperState)
+
+    def lit_wrapper(state: dict) -> dict:
+        _log("Literature Researcher", "searching web & synthesizing...")
+        return _collect_agent_calls(state, run_literature_researcher(state))
+
+    def writer_wrapper(state: dict) -> dict:
+        _log("Writer (DeepSeek)", "generating review draft...")
+        return _collect_agent_calls(state, run_writer(state))
+
+    def assessor_wrapper(state: dict) -> dict:
+        _log("Assessor (Claude)", "evaluating draft...")
+        return _collect_agent_calls(state, run_assessor(state))
+
+    def rewriter_wrapper(state: dict) -> dict:
+        n = state.get("text_rewrite_count", 0) + 1
+        _log("Rewriter (Claude)", f"revision #{n}...")
+        return _collect_agent_calls(state, run_rewriter(state))
+
+    def plagiarism_wrapper(state: dict) -> dict:
+        _log("Plagiarism Check (DeepSeek)", "checking originality...")
+        return _collect_agent_calls(state, run_plagiarism_check(state))
+
+    def figure_gen_wrapper(state: dict) -> dict:
+        n = state.get("figure_rewrite_count", 0) + 1
+        _log("Figure Gen (Gemini)", f"generating figures (#{n})...")
+        return _collect_agent_calls(state, run_figure_gen(state))
+
+    def figure_supervisor_wrapper(state: dict) -> dict:
+        _log("Figure Supervisor (Claude)", "reviewing figures...")
+        return _collect_agent_calls(state, run_figure_supervisor(state))
+
+    builder.add_node("literature_researcher", lit_wrapper)
+    builder.add_node("writer", writer_wrapper)
+    builder.add_node("assessor", assessor_wrapper)
+    builder.add_node("rewriter", rewriter_wrapper)
+    builder.add_node("plagiarism_check", plagiarism_wrapper)
+    builder.add_node("figure_gen", figure_gen_wrapper)
+    builder.add_node("figure_supervisor", figure_supervisor_wrapper)
+
+    builder.set_entry_point("literature_researcher")
+    builder.add_edge("literature_researcher", "writer")
+    builder.add_edge("writer", "assessor")
+
+    builder.add_conditional_edges("assessor", _should_rewrite, {
+        "rewrite": "rewriter",
+        "pass": "plagiarism_check",
+    })
+    builder.add_edge("rewriter", "assessor")
+    builder.add_edge("plagiarism_check", "figure_gen")
+    builder.add_edge("figure_gen", "figure_supervisor")
+    builder.add_conditional_edges("figure_supervisor", _should_regenerate_figure, {
+        "regenerate": "figure_gen",
+        "pass": END,
+    })
+
+    return builder.compile()
+
+
 def load_caches(state: dict) -> dict:
     """Load cached knowledge bases into state before the run."""
     updates = {}
@@ -162,9 +235,7 @@ def load_caches(state: dict) -> dict:
     if is_cache_fresh(TELLS_CACHE_PATH, max_age_days=7):
         tells_raw = load_cache(TELLS_CACHE_PATH)
         if tells_raw:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 updates["ai_tells"] = json.loads(tells_raw)
-            except json.JSONDecodeError:
-                pass
 
     return updates

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-slate-900">Projects</h2>
+        <p class="text-sm text-slate-500 mt-1">Per-project research context — title, question, keywords, supervisor notes.</p>
+    </div>
+    <a href="/projects/new"
+       class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        + New project
+    </a>
+</div>
+
+{% if flash_error %}
+<div class="bg-rose-50 border border-rose-200 text-rose-900 rounded-lg px-4 py-3 mb-4 text-sm">
+    {{ flash_error }}
+</div>
+{% endif %}
+
+{% if projects %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for p in projects %}
+    <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-start justify-between mb-2">
+            <a href="/projects/{{ p.slug }}" class="font-semibold text-slate-900 hover:text-indigo-600">{{ p.title }}</a>
+            <span class="text-xs text-slate-400">{{ (p.updated_at or p.created_at)[:10] }}</span>
+        </div>
+        {% if p.research_question %}
+        <p class="text-sm text-slate-600 mb-2">{{ p.research_question }}</p>
+        {% endif %}
+        <div class="flex flex-wrap gap-1.5 mb-2">
+            {% for kw in p.keywords %}
+            <span class="px-2 py-0.5 rounded text-xs bg-indigo-50 text-indigo-700">{{ kw }}</span>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-slate-500">
+            {{ p.discipline or "—" }} · {{ p.citation_style }}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg border border-dashed border-slate-300 p-8 text-center">
+    <p class="text-sm text-slate-600 mb-3">No projects yet.</p>
+    <a href="/projects/new" class="text-sm text-indigo-600 hover:underline">Create your first research project →</a>
+</div>
+{% endif %}
+{% endblock %}

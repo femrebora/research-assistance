@@ -54,8 +54,13 @@ def _update_job(job_id: str, **kwargs):
 # ── Pipeline runner ────────────────────────────────────────────────────────
 
 def _run_pipeline_in_thread(job_id: str, code_path: str, summary: str,
-                             output_dir: str, max_rewrites: int):
-    """Run the full pipeline in a background thread, emitting progress events."""
+                             output_dir: str, max_rewrites: int,
+                             mode: str = "code", topic: str = ""):
+    """Run the full pipeline in a background thread, emitting progress events.
+
+    `mode` is "code" (codebase -> paper) or "review" (topic -> review article
+    via autonomous web research).
+    """
     import io
     import re
 
@@ -72,18 +77,22 @@ def _run_pipeline_in_thread(job_id: str, code_path: str, summary: str,
     try:
         _sys.stderr = captured_stderr
 
-        from agentic.state import make_initial_state
-        from agentic.orchestrator import build_graph, load_caches
         import agentic.orchestrator as orch
+        from agentic.orchestrator import build_graph, build_review_graph, load_caches
+        from agentic.state import make_initial_state
 
         orch.MIN_SECTION_SCORE = 7
 
+        review = mode == "review"
         state = make_initial_state(
-            code_path=str(Path(code_path).expanduser().resolve()),
-            user_summary=summary,
+            code_path="" if review else str(Path(code_path).expanduser().resolve()),
+            user_summary=topic if review else summary,
             output_dir=str(Path(output_dir).expanduser().resolve()),
             max_rewrites=max_rewrites,
         )
+        if review:
+            state["research_topic"] = topic
+            state["review_mode"] = True
         cache_updates = load_caches(state)
         style_loaded = bool(state.get("style_guide"))
         tells_loaded = bool(state.get("ai_tells"))
@@ -99,7 +108,7 @@ def _run_pipeline_in_thread(job_id: str, code_path: str, summary: str,
         })
         _update_job(job_id, events=events)
 
-        graph = build_graph()
+        graph = build_review_graph() if review else build_graph()
         _update_job(job_id, events=events)
 
         # Run the graph
@@ -175,20 +184,30 @@ def paperforge_page():
 
 @paperforge_bp.route("/paperforge/run", methods=["POST"])
 def paperforge_run():
-    """Start a pipeline run. Returns JSON with job_id."""
+    """Start a pipeline run. Returns JSON with job_id.
+
+    Two modes: "code" (codebase -> paper) needs `code_path` + `summary`;
+    "review" (topic -> review article) needs `topic`.
+    """
+    mode = request.form.get("mode", "code").strip() or "code"
     code_path = request.form.get("code_path", "").strip()
     summary = request.form.get("summary", "").strip()
+    topic = request.form.get("topic", "").strip()
     output_dir = request.form.get("output_dir", "").strip()
     max_rewrites = int(request.form.get("max_rewrites", "3"))
 
-    if not code_path or not summary:
-        return jsonify({"error": "Code path and summary are required."}), 400
-
-    if not Path(code_path).expanduser().exists():
-        return jsonify({"error": f"Code path does not exist: {code_path}"}), 400
+    if mode == "review":
+        if not topic:
+            return jsonify({"error": "A research topic is required for review mode."}), 400
+    else:
+        if not code_path or not summary:
+            return jsonify({"error": "Code path and summary are required."}), 400
+        if not Path(code_path).expanduser().exists():
+            return jsonify({"error": f"Code path does not exist: {code_path}"}), 400
 
     if not output_dir:
-        output_dir = str(THESIS_ROOT / "output" / f"paperforge-{uuid.uuid4().hex[:8]}")
+        label = "review" if mode == "review" else "paperforge"
+        output_dir = str(THESIS_ROOT / "output" / f"{label}-{uuid.uuid4().hex[:8]}")
 
     job_id = uuid.uuid4().hex[:12]
 
@@ -196,8 +215,10 @@ def paperforge_run():
         _jobs[job_id] = {
             "id": job_id,
             "status": "starting",
+            "mode": mode,
             "code_path": code_path,
             "summary": summary,
+            "topic": topic,
             "output_dir": output_dir,
             "max_rewrites": max_rewrites,
             "events": [],
@@ -207,6 +228,7 @@ def paperforge_run():
     thread = threading.Thread(
         target=_run_pipeline_in_thread,
         args=(job_id, code_path, summary, output_dir, max_rewrites),
+        kwargs={"mode": mode, "topic": topic},
         daemon=True,
     )
     thread.start()

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-slate-900">Prompt library</h2>
+        <p class="text-sm text-slate-500 mt-1">Curated, copy-ready prompts for academic workflows.</p>
+    </div>
+</div>
+
+<!-- Category filter -->
+<div class="flex flex-wrap gap-1.5 mb-5">
+    <a href="/prompts"
+       class="px-2.5 py-1 rounded text-xs {% if not active_category %}bg-indigo-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-50{% endif %}">
+        all
+    </a>
+    {% for cat, count in categories %}
+    <a href="/prompts?category={{ cat }}"
+       class="px-2.5 py-1 rounded text-xs {% if active_category == cat %}bg-indigo-600 text-white{% else %}bg-white border border-slate-200 text-slate-600 hover:bg-slate-50{% endif %}">
+        {{ cat }} <span class="opacity-60">{{ count }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Prompt cards -->
+{% if prompts %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for p in prompts %}
+    <div class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-start justify-between mb-2">
+            <div>
+                <h3 class="font-semibold text-slate-900">{{ p.title }}</h3>
+                <p class="text-[11px] uppercase tracking-wider text-slate-400 mt-0.5">{{ p.category }}</p>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono">{{ p.recommended_model }}</span>
+        </div>
+        <p class="text-sm text-slate-600 mb-3">{{ p.purpose }}</p>
+        <details>
+            <summary class="text-xs text-indigo-600 cursor-pointer hover:underline">show prompt</summary>
+            <pre class="mt-2 text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-x-auto whitespace-pre-wrap">{{ p.body }}</pre>
+        </details>
+        <div class="flex items-center gap-2 mt-3">
+            <button onclick="copyPrompt('{{ p.slug }}', this)"
+                    data-prompt="{{ p.body|e }}"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200">
+                Copy to clipboard
+            </button>
+            <a href="/ask?prompt_slug={{ p.slug }}"
+               class="text-xs text-indigo-600 hover:underline">Send to Ask →</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-slate-500">No prompts in this category yet.</p>
+{% endif %}
+
+<script>
+function copyPrompt(slug, btn) {
+    const text = btn.getAttribute("data-prompt");
+    navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+}
+</script>
+{% endblock %}

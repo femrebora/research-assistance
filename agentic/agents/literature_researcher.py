@@ -9,11 +9,11 @@ technical report for the Writer.
 """
 from __future__ import annotations
 
+import json
 import sys
+from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-from urllib.error import URLError
-import json
 
 from agentic.bridge import call_agent
 
@@ -93,7 +93,7 @@ def _gather_research(topic: str) -> str:
     sections = []
 
     # 1. Academic literature via OpenAlex
-    print(f"  [Research] OpenAlex: searching academic papers...", file=sys.stderr)
+    print("  [Research] OpenAlex: searching academic papers...", file=sys.stderr)
     sections.append(f"## Academic Literature (via OpenAlex)\n\n{_search_openalex(topic)}\n")
 
     # 2-5. Web searches for companies, market, clinical
