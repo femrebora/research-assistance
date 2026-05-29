@@ -130,7 +130,7 @@ PAPER_TYPES: dict[str, PaperType] = {
 
 def estimate_words(total: int, share: float) -> int:
     """Words for a section, rounded to the nearest 50 for a clean estimate."""
-    return int(round(total * share / 50.0)) * 50
+    return round(total * share / 50.0) * 50
 
 
 def _require_type(paper_type_key: str) -> PaperType:
