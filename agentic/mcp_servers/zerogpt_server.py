@@ -26,15 +26,40 @@ MAX_TEXT_LENGTH = 15000  # ZeroGPT limit
 
 
 def _check_via_playwright(text: str, timeout_ms: int = 60000) -> dict:
-    """Submit text to ZeroGPT via Playwright and extract the AI score."""
+    """Submit text to ZeroGPT via Playwright and extract the AI score.
+
+    Two extraction methods:
+    1. Intercept the API response (api.zerogpt.com/api/detect/detectText) — primary
+    2. Read the gauge rotation from semi-circle--mask element — fallback
+
+    The API returns fakePercentage (0-100) directly.
+    The gauge rotation maps: 0deg = 0% AI, 180deg = 100% AI.
+    """
     from playwright.sync_api import sync_playwright
-    import playwright  # noqa: F811
 
     text = text[:MAX_TEXT_LENGTH]
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
+
+        # Intercept API response
+        api_data = {}
+
+        def _on_response(response):
+            if "detectText" in response.url and "api" in response.url:
+                try:
+                    body = response.json()
+                    data = body.get("data", {})
+                    api_data["fake_percentage"] = data.get("fakePercentage")
+                    api_data["is_human"] = data.get("isHuman")
+                    api_data["ai_words"] = data.get("aiWords", 0)
+                    api_data["text_words"] = data.get("textWords", 0)
+                    api_data["sentences"] = data.get("sentences", [])
+                except Exception:
+                    pass
+
+        page.on("response", _on_response)
 
         try:
             page.goto("https://www.zerogpt.com", timeout=30000, wait_until="domcontentloaded")
@@ -47,47 +72,52 @@ def _check_via_playwright(text: str, timeout_ms: int = 60000) -> dict:
             detect_btn = page.locator("button:has-text('Detect')").first
             detect_btn.click()
 
-            # Wait for result
-            time.sleep(3)
-            page.wait_for_timeout(2000)
+            # Wait up to 20s for either API response or gauge change
+            for _ in range(20):
+                time.sleep(1)
+                if api_data:
+                    break
 
-            page_content = page.content()
-
-            # Extract AI percentage
-            percentages = re.findall(
-                r'(\d+(?:\.\d+)?)\s*%\s*(?:AI|Artificial)',
-                page_content, re.IGNORECASE
-            )
-            if not percentages:
-                percentages = re.findall(
-                    r'(?:AI|Artificial)[^%]*?(\d+(?:\.\d+)?)\s*%',
-                    page_content, re.IGNORECASE
-                )
-
-            if percentages:
+            if api_data and api_data.get("fake_percentage") is not None:
+                fp = float(api_data["fake_percentage"])
+                ai_sentences = [s for s in api_data.get("sentences", [])
+                                if s.get("h") == "ai"]
                 return {
-                    "ai_probability_pct": float(percentages[0]),
+                    "ai_probability_pct": fp,
+                    "is_human_score": api_data.get("is_human"),
+                    "ai_words": api_data["ai_words"],
+                    "text_words": api_data["text_words"],
+                    "total_sentences": len(api_data.get("sentences", [])),
+                    "ai_flagged_sentences": len(ai_sentences),
                     "verdict": (
-                        "human" if float(percentages[0]) < 20
-                        else "mostly-human" if float(percentages[0]) < 50
-                        else "mixed" if float(percentages[0]) < 80
+                        "human" if fp < 20
+                        else "mostly-human" if fp < 50
+                        else "mixed" if fp < 80
                         else "ai-generated"
                     ),
                 }
 
-            # Try visible elements
-            score_els = page.locator(
-                "[class*='percentage'], [class*='score'], [class*='result-value']"
-            ).all()
-            for el in score_els:
-                txt = el.text_content()
-                if txt and "%" in txt:
-                    nums = re.findall(r'(\d+(?:\.\d+)?)\s*%', txt)
-                    if nums:
-                        return {
-                            "ai_probability_pct": float(nums[0]),
-                            "verdict": "see score",
-                        }
+            # Fallback: read gauge rotation from DOM
+            page_content = page.content()
+            rotations = re.findall(
+                r'semi-circle--mask[^>]*rotate\(([\d.]+)deg\)',
+                page_content,
+            )
+            if rotations:
+                deg = float(rotations[0])
+                # 0deg = 0% AI, 180deg = 100% AI
+                ai_pct = round(deg / 180.0 * 100, 1)
+                return {
+                    "ai_probability_pct": ai_pct,
+                    "extraction_method": "gauge-rotation",
+                    "gauge_degrees": deg,
+                    "verdict": (
+                        "human" if ai_pct < 20
+                        else "mostly-human" if ai_pct < 50
+                        else "mixed" if ai_pct < 80
+                        else "ai-generated"
+                    ),
+                }
 
             return {"error": "Could not extract AI score", "raw_snippet": page_content[:500]}
 
