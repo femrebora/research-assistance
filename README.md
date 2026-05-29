@@ -5,7 +5,7 @@
 [![flask](https://img.shields.io/badge/web%20UI-Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![models](https://img.shields.io/badge/models-Claude%20%7C%20Gemini%20%7C%20DeepSeek%20%7C%20GPT--5-7C3AED)](#supported-models)
 
-AI powered research toolkit for thesis writing. Ask questions against your Zotero library, generate paper outlines, run peer reviews, simulate your defense, and generate full papers from code or topics. Everything works through a Flask web UI or CLI.
+CLI toolkit and Flask web UI for thesis research: Zotero-indexed RAG, multi-model comparison, writing-pipeline tools (outline, critique, paraphrase check, audit, coherence), external paper discovery (OpenAlex / Semantic Scholar / Elicit), and multi-agent paper generation.
 
 ## Quick start
 
@@ -13,156 +13,126 @@ AI powered research toolkit for thesis writing. Ask questions against your Zoter
 git clone https://github.com/femrebora/research-assistant
 cd research-assistant
 ./setup.sh
+source ~/.venvs/thesis/bin/activate
+cp env.example .env    # then edit .env with your API keys
+ra-web                 # open http://127.0.0.1:5050
 ```
 
-Edit `.env` with at least one API key:
+## Configuration
+
+Put your keys in `.env`. At minimum, set one model provider:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...
-# or GEMINI_API_KEY=... / DEEPSEEK_API_KEY=sk-... / OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+DEEPSEEK_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
 ```
 
-Then launch:
-
-```bash
-source ~/.venvs/thesis/bin/activate
-ra-web          # open http://127.0.0.1:5050
-```
-
-## Web UI
-
-All features are available at `http://127.0.0.1:5050`.
-
-### Ask and search
-
-| Page | What it does |
-|---|---|
-| `/` Dashboard | Index stats, quick ask box, active project banner |
-| `/ask` | RAG backed Q&A against your indexed papers with citations |
-| `/compare` | Same question answered by multiple models side by side |
-| `/sessions` | Browse and manage saved Q&A sessions |
-
-### Writing tools
-
-| Page | What it does |
-|---|---|
-| `/outline-recommender` | Structured outline with evidence mapping, pre-filled from your active project |
-| `/tools/outline` | Section outline with citation stubs |
-| `/tools/critique` | Structural and argument feedback on a draft |
-| `/tools/critic` | Writer + critic pipeline |
-| `/tools/paraphrase` | Writer, paraphraser, checker pipeline |
-| `/tools/coherence` | Chapter coherence analysis |
-
-### Review and defense
-
-| Page | What it does |
-|---|---|
-| `/peer-review` | Parallel structural, methodology, and citation reviewers across multiple models |
-| `/defense` | Jury questions from 5 examiner personas (supervisor, external reviewer, methodologist, statistician, field expert) |
-
-### Verification
-
-| Page | What it does |
-|---|---|
-| `/tools/originality` | Originality check against internal RAG and OpenAlex / Crossref |
-| `/tools/audit` | Citation audit |
-| `/tools/verify` | Citekey resolution against your .bib file |
-| `/tools/claim-verify` | Per-claim support audit |
-| `/tools/disclose` | AI usage disclosure statement |
-
-### Discovery
-
-| Page | What it does |
-|---|---|
-| `/tools/discover` | Find papers via OpenAlex / Semantic Scholar |
-| `/tools/evidence` | PaperQA2 cited evidence query |
-| `/tools/zot` | Search your Zotero library |
-
-### PaperForge (multi-agent paper generation)
-
-PaperForge generates full academic papers using 7 specialized agents across 3 LLM backends.
-
-| Mode | What it does |
-|---|---|
-| Code to Paper | Generate a paper from your codebase (`run_agentic.py`) |
-| Topic to Review | Autonomous web research + review article (`run_review.py`) |
-| AI Detection | 7 mechanical checks, 0-10 score, no LLM calls (`quick_ai_score.py`) |
-
-```bash
-# Generate a paper from a codebase
-./run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
-
-# Generate a review article
-./run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
-
-# Check a paper for AI generated patterns
-./quick_ai_score.py paper.md --json
-```
-
-Pipeline: `Code Analyst -> Writer -> Assessor -> Rewriter (loops up to 3x) -> Plagiarism Check -> Figure Gen -> Supervisor`. For review mode, Code Analyst becomes Literature Researcher which searches OpenAlex and DuckDuckGo autonomously.
-
-### Projects and workspace
-
-| Page | What it does |
-|---|---|
-| `/projects` | Create projects with title, research question, hypothesis, keywords, citation style |
-| `/projects/<slug>/activate` | Set active project (context injected into peer review, defense, and outline recommender) |
-| `/workspace` | Full text editor with per-project file management |
-| `/orchestration` | Model usage dashboard: calls, tokens, cost, daily spend |
-| `/prompts` | 10 curated academic prompts, one click copy or send to Ask |
-| `/index` | Background Zotero PDF indexing with live progress |
-
-## CLI
-
-All tools work from the terminal too. Run any command with `--help`.
-
-### Ask and search
-
-| Command | What it does |
-|---|---|
-| `ra-ask "question"` | Single model Q&A |
-| `ra-compare "question"` | Multi model comparison |
-| `ra-researcher ask "question"` | RAG question with cited answer |
-| `ra-researcher index` | Index Zotero PDFs for RAG |
-| `ra-zot "query"` | Search your Zotero library |
-| `ra-discover "topic"` | Find papers via OpenAlex / Semantic Scholar |
-| `ra-evidence "claim"` | PaperQA2 cited evidence query |
-
-### Writing
-
-| Command | What it does |
-|---|---|
-| `ra-outline "topic"` | Section outline with citation stubs |
-| `ra-outline-recommender "topic"` | Paper-type aware outline with evidence mapping |
-| `ra-ideas "topic"` | Paragraph angles from evidence |
-| `ra-critique file.md` | Draft critique with structural feedback |
-| `ra-critic file.md` | Writer + critic pipeline |
-| `ra-paraphrase file.md` | Writer, paraphraser, checker pipeline |
-| `ra-coherence chapter/` | Chapter coherence analysis |
-
-### Verification
-
-| Command | What it does |
-|---|---|
-| `ra-audit file.md` | Citation audit |
-| `ra-verify file.md` | Citekey resolution against .bib |
-| `ra-claim-verify file.md` | Per-claim support audit |
-| `ra-originality file.md` | Originality check (internal + OpenAlex / Crossref) |
-| `ra-disclose` | AI usage disclosure statement |
-| `ra-pipeline` | Full end to end orchestrator |
-
-## Zotero integration (optional)
-
-For RAG backed Q&A, add these to `.env`:
+For Zotero integration, also set:
 
 ```bash
 ZOTERO_USER_ID=1234567
 ZOTERO_API_KEY=...
+THESIS_ROOT=/home/you/thesis          # default: ~/thesis
 ZOTERO_STORAGE=/home/you/Zotero/storage
-THESIS_ROOT=/home/you/thesis       # default: ~/thesis
 ```
 
-Then index from the web UI at `/index` or run `ra-researcher index`. Already indexed papers are skipped. Use `--force` to re-index everything. Indexing takes about 5-10 seconds per paper.
+All model calls are logged to `~/thesis/logs/` for disclosure purposes. Use the built-in disclosure tool in the web UI to generate a venue-ready statement.
+
+## Web UI
+
+The dashboard at `http://127.0.0.1:5050` gives you:
+
+- **Dashboard** — index stats, quick-ask, recent sessions, active project banner
+- **Ask** — RAG-backed Q&A against your indexed papers, with citations
+- **Compare** — side-by-side answers from multiple models
+- **Sessions** — browse, view, and delete saved Q&A
+- **Index** — background indexing with progress tracking
+- **Tools** — every CLI tool below is also available as a form at `/tools/<name>`
+- **Outline Recommender** — guided outline generator with paper-type selection, evidence mapping, and active-project prefill at `/outline-recommender`
+- **Projects** — per-project context (title, research question, hypothesis, keywords, citation style, supervisor notes) at `/projects`. Set the active project and its context is injected into peer review, defense, and outline recommender
+- **Peer Review** — structural, methodology, and citation reviewers run in parallel across multiple models at `/peer-review`
+- **Defense** — jury questions from 5 examiner personas (friendly supervisor, strict external reviewer, methodology examiner, statistics examiner, field expert) at `/defense`
+- **Orchestration** — model usage dashboard: per-model calls, tokens, cost, daily spend sparkline at `/orchestration`
+- **Prompt Library** — 10 curated prompts across 10 academic categories, one-click copy or send-to-Ask at `/prompts`
+- **Workspace** — full-text editor with per-project file management and undo at `/workspace`
+- **PaperForge** — generate papers from code or topics with live SSE progress at `/paperforge`
+
+## PaperForge — Multi-Agent Paper Generation
+
+PaperForge generates complete academic papers from a codebase or a research topic using 7 specialized AI agents across 3 LLM backends.
+
+| Script | Purpose |
+|--------|---------|
+| `run_agentic.py` | **Code to Paper** — generate an academic paper from a codebase |
+| `run_review.py` | **Topic to Review Article** — autonomous web research + review generation |
+| `quick_ai_score.py` | **AI Text Detection** — 7 mechanical checks, 0-10 score, no LLM calls |
+
+### Pipeline
+
+```
+Codebase → Code Analyst (Gemini) → Writer (DeepSeek) → Assessor (Claude)
+                                        ↓                    ↓
+                                  Complete draft      Section scores
+                                                              ↓
+                                              Rewriter (Claude) ←──┘
+                                              (loops ≤3× until score ≥7)
+                                                              ↓
+                                              Plagiarism Check (report-only)
+                                                              ↓
+                                              Figure Gen (Gemini) → Supervisor
+```
+
+For review articles, `Code Analyst` is replaced by `Literature Researcher` which searches **OpenAlex** (academic papers) and **DuckDuckGo** (companies, market data) autonomously.
+
+### Usage
+
+```bash
+# One-time cache setup
+./run_agentic.py --refresh-style --domain bioinformatics
+./run_agentic.py --refresh-artifacts
+
+# Generate a paper from a codebase
+./run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
+
+# Generate a review article (autonomous web research!)
+./run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
+
+# Check a paper for AI-generated patterns
+./quick_ai_score.py paper.md --json
+```
+
+**Expected results:** AI score <2/10 (human-like), all sections 7-9/10, $1.50-2.00 per run, zero em dashes.
+
+## CLI (optional)
+
+Everything in the web UI is also available from the terminal:
+
+| Command | What it does |
+|---|---|
+| `ra-researcher ask` | RAG question with cited answer |
+| `ra-researcher index` | Index Zotero PDFs |
+| `ra-compare` | Multi-model comparison |
+| `ra-ask` | Single-model question |
+| `ra-zot` | Search your Zotero library |
+| `ra-discover` | Find papers via OpenAlex / Semantic Scholar |
+| `ra-evidence` | PaperQA2 cited query |
+| `ra-outline-recommender` | Paper-type aware outline with evidence mapping |
+| `ra-ideas` | Paragraph angles from evidence |
+| `ra-outline` | Section outline with citation stubs |
+| `ra-critique` | Draft critique |
+| `ra-critic` | Writer + critic pipeline |
+| `ra-paraphrase` | Writer to paraphraser to checker pipeline |
+| `ra-coherence` | Chapter coherence analysis |
+| `ra-audit` | Citation audit |
+| `ra-verify` | Citekey resolution against .bib |
+| `ra-claim-verify` | Semantic per-claim support audit |
+| `ra-originality` | Originality check (internal + OpenAlex / Crossref) |
+| `ra-disclose` | AI-usage disclosure statement |
+| `ra-pipeline` | Full end-to-end orchestrator |
+
+Run any command with `--help` for options.
 
 ## Supported models
 
@@ -178,14 +148,14 @@ Then index from the web UI at `/index` or run `ra-researcher index`. Already ind
 | `gpt-mini` | GPT-5 Mini | $0.15 | $0.60 |
 | `local` | Ollama (configurable) | $0.00 | $0.00 |
 
+CLI-subscription aliases (`claude-cli`, `gemini-cli`, `codex-cli`, `ollama-cli`) are also available — see `common.py`.
+
 ## FAQ
 
-**Do I need all API keys?** No, one provider is enough. PaperForge works best with 2-3 providers since different agents use different models.
+**Do I need all API keys?** No. One provider is enough.
 
-**How long does indexing take?** About 5-10 seconds per paper. Already indexed papers are skipped automatically.
+**How long does indexing take?** ~5-10 seconds per paper.
 
-**Can I use a local embedding model?** Yes. Set `DEFAULT_EMBED_MODEL` in `researcher.py` to `"ollama/nomic-embed-text"`.
+**Can I use a local embedding model?** Yes. Change `DEFAULT_EMBED_MODEL` in `researcher.py` to `"ollama/nomic-embed-text"`.
 
-**Where are model call logs stored?** `~/thesis/logs/` in JSONL format. Useful for disclosure statements.
-
-**What does a PaperForge run cost?** About $1.50-$2.00 per full paper generation.
+**How do I update the index?** Run indexing again — already-indexed papers are skipped by Zotero item key. Use `--force` to re-index everything.
