@@ -22,29 +22,57 @@
         <div class="mb-8">
             <a href="/" class="text-sm text-indigo-600 hover:text-indigo-800">&larr; Back to Research Assistant</a>
             <h1 class="text-2xl font-semibold text-slate-900 mt-2">PaperForge</h1>
-            <p class="text-sm text-slate-500 mt-1">Multi-agent academic paper generation from your codebase</p>
+            <p class="text-sm text-slate-500 mt-1">Multi-agent academic paper generation — from a codebase or a research topic</p>
         </div>
 
         <!-- Form -->
         <div id="paperforge-form" class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+            <!-- Mode toggle -->
+            <div class="inline-flex rounded-md border border-slate-200 p-0.5 mb-5 bg-slate-50">
+                <label class="cursor-pointer">
+                    <input type="radio" name="mode" value="code" class="peer sr-only" checked>
+                    <span class="block px-3 py-1.5 text-sm rounded peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-medium text-slate-500">Code → Paper</span>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="mode" value="review" class="peer sr-only">
+                    <span class="block px-3 py-1.5 text-sm rounded peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-medium text-slate-500">Topic → Review</span>
+                </label>
+            </div>
+
             <form id="run-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">
-                        Code path <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" name="code_path" required
-                           placeholder="/path/to/your/project"
-                           class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                    <p class="text-xs text-slate-400 mt-1">Path to the codebase to analyze and write about.</p>
+                <!-- Code → Paper fields -->
+                <div data-fields="code" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">
+                            Code path <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="code_path" data-required-for="code"
+                               placeholder="/path/to/your/project"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                        <p class="text-xs text-slate-400 mt-1">Path to the codebase to analyze and write about.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">
+                            Project summary <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="summary" data-required-for="code" rows="3"
+                                  placeholder="Brief description of what your project does..."
+                                  class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"></textarea>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">
-                        Project summary <span class="text-red-500">*</span>
-                    </label>
-                    <textarea name="summary" required rows="3"
-                              placeholder="Brief description of what your project does..."
-                              class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"></textarea>
+                <!-- Topic → Review fields -->
+                <div data-fields="review" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">
+                            Research topic <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="topic" data-required-for="review"
+                               placeholder="e.g. CRISPR-Based Therapeutics: Delivery Methods"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+                        <p class="text-xs text-slate-400 mt-1">The pipeline does its own web research (OpenAlex + DuckDuckGo) — no codebase needed.</p>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -117,8 +145,11 @@
     const resultsArea = document.getElementById('results-area');
     const errorArea = document.getElementById('error-area');
 
+    let currentJobId = '';
+
     const AGENT_COLORS = {
         'Code Analyst': 'text-blue-600',
+        'Literature Researcher': 'text-blue-600',
         'Writer': 'text-purple-600',
         'Assessor': 'text-emerald-600',
         'Rewriter': 'text-amber-600',
@@ -134,9 +165,32 @@
         return 'text-slate-500';
     }
 
+    // ── Mode toggle: show the right fields, set `required` only on visible ones ──
+    function currentMode() {
+        const checked = form.querySelector('input[name="mode"]:checked');
+        return checked ? checked.value : 'code';
+    }
+
+    function applyMode() {
+        const mode = currentMode();
+        document.querySelectorAll('[data-fields]').forEach((block) => {
+            block.classList.toggle('hidden', block.dataset.fields !== mode);
+        });
+        document.querySelectorAll('[data-required-for]').forEach((input) => {
+            input.required = input.dataset.requiredFor === mode;
+        });
+        submitBtn.textContent = mode === 'review' ? 'Generate Review Article' : 'Generate Paper';
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach((radio) => {
+        radio.addEventListener('change', applyMode);
+    });
+    applyMode();
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = new FormData(form);
+        data.set('mode', currentMode());
 
         submitBtn.disabled = true;
         submitBtn.textContent = 'Starting pipeline...';
@@ -153,6 +207,7 @@
                 return;
             }
 
+            currentJobId = json.job_id;
             progressStatus.textContent = 'Running';
             subscribeProgress(json.job_id);
         } catch (err) {
@@ -207,7 +262,7 @@
     function showResults(results) {
         resultsArea.classList.remove('hidden');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Generate Paper';
+        applyMode();
 
         const summary = document.getElementById('results-summary');
         summary.innerHTML = `
@@ -258,7 +313,7 @@
 
     function showError(msg) {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Generate Paper';
+        applyMode();
         progressIndicator.classList.add('hidden');
         progressStatus.textContent = 'Error';
         progressStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700';
@@ -270,8 +325,7 @@
     }
 
     function getJobId() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('job') || '';
+        return currentJobId;
     }
 
     function escapeHtml(text) {

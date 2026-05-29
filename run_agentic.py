@@ -14,12 +14,12 @@ import sys
 from pathlib import Path
 
 import click
-
-from agentic.state import make_initial_state
-from agentic.orchestrator import build_graph, load_caches
-from agentic.agents.style_researcher import run_style_researcher
-from agentic.agents.ai_artifact_detector import run_ai_artifact_detector
 from common import THESIS_ROOT
+
+from agentic.agents.ai_artifact_detector import run_ai_artifact_detector
+from agentic.agents.style_researcher import run_style_researcher
+from agentic.orchestrator import build_graph, load_caches
+from agentic.state import make_initial_state
 
 
 @click.command()

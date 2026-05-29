@@ -72,6 +72,13 @@ ra-paraphrase = "research_assistant.writing.paraphrase:main"
 ra-coherence = "research_assistant.writing.coherence:main"
 ra-disclose = "research_assistant.writing.disclose:main"
 
+# Workspace subpackage (projects, dashboard, peer review, defense, prompts)
+ra-project = "research_assistant.workspace.cli:project_main"
+ra-orchestration = "research_assistant.workspace.cli:orchestration_main"
+ra-prompts = "research_assistant.workspace.cli:prompts_main"
+ra-peer-review = "research_assistant.workspace.cli:peer_review_main"
+ra-defense = "research_assistant.workspace.cli:defense_main"
+
 # Verification subpackage
 ra-audit = "research_assistant.verification.audit:main"
 ra-claim-verify = "research_assistant.verification.claim_verify:main"
@@ -117,7 +124,20 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401"]            # test-only imports
-"research_assistant/web/app.py" = ["E402"]  # late imports inside routes
+"research_assistant/web/app.py" = ["E402", "RUF001"]  # late imports + en-dashes in prompt prose
+# Curated prompt bodies use en-dashes ("–") and arrows ("→") deliberately
+# as part of academic prose. They are not bugs to fix.
+"research_assistant/workspace/prompts_library.py" = ["RUF001"]
+"research_assistant/workspace/peer_review.py" = ["RUF001"]
+"research_assistant/workspace/defense.py" = ["RUF001"]
+"research_assistant/workspace/editor.py" = ["RUF001"]
+# PaperForge prompt + agent modules embed en-dashes/arrows in academic prose,
+# and quick_ai_score / text_cleanup carry smart-punctuation detection patterns.
+"agentic/prompts/*.py" = ["RUF001"]
+"agentic/agents/*.py" = ["RUF001"]
+"agentic/text_cleanup.py" = ["RUF001"]
+"quick_ai_score.py" = ["RUF001"]
+"tests/test_text_cleanup.py" = ["RUF001"]  # unicode fixtures are the test data
 
 [tool.ruff.format]
 quote-style = "double"

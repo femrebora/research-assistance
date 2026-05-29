@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agentic.orchestrator import _should_rewrite, _should_regenerate_figure, load_caches
+from agentic.orchestrator import _should_regenerate_figure, _should_rewrite, load_caches
 
 
 class TestShouldRewrite:

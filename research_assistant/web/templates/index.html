@@ -35,6 +35,32 @@
     </div>
 </div>
 
+<!-- Provider health -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <a href="/providers" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
+        <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if api_ok else 'bg-slate-300' }}"></span>
+            <p class="text-xs uppercase tracking-wider text-slate-400">API providers</p>
+        </div>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ api_ok }}<span class="text-slate-400 text-base font-normal"> / {{ api_providers|length }}</span></p>
+    </a>
+    <a href="/providers" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
+        <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if cli_ok >= 4 else 'bg-amber-400' if cli_ok else 'bg-slate-300' }}"></span>
+            <p class="text-xs uppercase tracking-wider text-slate-400">CLI providers</p>
+        </div>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ cli_ok }}<span class="text-slate-400 text-base font-normal"> / {{ cli_providers|length }}</span></p>
+    </a>
+    <a href="{{ '/paperforge' if paperforge_available else '/settings' }}"
+       class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
+        <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if paperforge_available else 'bg-slate-300' }}"></span>
+            <p class="text-xs uppercase tracking-wider text-slate-400">{{ 'PaperForge' if paperforge_available else 'Config' }}</p>
+        </div>
+        <p class="text-sm font-medium text-slate-700 mt-2">{{ 'Ready' if paperforge_available else 'Manage settings →' }}</p>
+    </a>
+</div>
+
 {% if not index.exists %}
 <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-4 py-3 mb-6 text-sm">
     No index found. <a href="/index" class="underline font-medium">Index your Zotero PDFs</a> to enable RAG features.

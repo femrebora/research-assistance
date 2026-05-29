@@ -8,18 +8,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from quick_ai_score import (
-    score_text,
-    _sentences,
-    _paragraphs,
-    _check_em_dashes,
-    _check_sentence_length,
-    _check_comma_density,
     _check_burstiness,
+    _check_comma_density,
+    _check_em_dashes,
     _check_formulaic_phrases,
     _check_paragraph_openings,
     _check_roadmap_sentences,
+    _check_sentence_length,
+    _paragraphs,
+    _sentences,
+    score_text,
 )
-
 
 HUMAN_PROSE = "Molecular dynamics simulations generate ensembles of protein conformations. These ensembles can reveal transient binding pockets not visible in static crystal structures. Identifying these pockets remains a computational challenge."
 

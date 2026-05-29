@@ -1,9 +1,10 @@
 """PaperForge Dashboard — Streamlit retro synthwave UI."""
 from __future__ import annotations
 
+import time
+
 import streamlit as st
 import streamlit.components.v1 as components
-import time
 
 st.set_page_config(
     page_title="PaperForge",

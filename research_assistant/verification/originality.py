@@ -79,7 +79,7 @@ class OriginalityReport(BaseModel):
 def _cosine(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na < 1e-12 or nb < 1e-12:
@@ -127,7 +127,7 @@ def _internal_matches(
     dists = results.get("distances", [[]])[0]
 
     out: list[ExternalMatch] = []
-    for doc, meta, dist in zip(docs, metas, dists):
+    for doc, meta, dist in zip(docs, metas, dists, strict=True):
         if doc is None or meta is None or dist is None:
             continue
         sim = 1.0 - dist

@@ -16,9 +16,7 @@ def _is_important(fname: str) -> bool:
     """Prioritize meaningful source files over Config/tests/data."""
     low = fname.lower()
     if low.endswith((".py", ".md", ".rst", ".txt")):
-        if any(x in low for x in ("test_", "conftest", "__pycache__")):
-            return False
-        return True
+        return not any(x in low for x in ("test_", "conftest", "__pycache__"))
     return False
 
 
@@ -51,7 +49,7 @@ def run_code_analyst(state: dict) -> dict:
 
     key_contents = []
     total_prompt_size = 0
-    for rel, full, sz in important:
+    for rel, full, _sz in important:
         if len(key_contents) >= MAX_KEY_FILES:
             break
         try:

@@ -15,8 +15,8 @@ from pathlib import Path
 
 import click
 
+from agentic.orchestrator import build_review_graph, load_caches
 from agentic.state import make_initial_state
-from agentic.orchestrator import load_caches
 
 
 @click.command()
@@ -55,7 +55,7 @@ def main(topic, output, max_rewrites):
         click.echo(f"  ✓ ai_tells.json loaded ({len(state['ai_tells'].get('overused_words', []))} words)")
 
     click.echo("\nBuilding pipeline (review mode)...")
-    graph = _build_review_graph()
+    graph = build_review_graph()
 
     click.echo("Running pipeline...\n")
     final_state = graph.invoke(state)
@@ -87,85 +87,6 @@ def main(topic, output, max_rewrites):
     click.echo(f"  Figure rewrites: {final_state.get('figure_rewrite_count', 0)}")
     click.echo(f"  Estimated cost: ${total_cost:.4f}")
     click.echo(f"  Output: {out_dir}")
-
-
-def _build_review_graph():
-    """Build a pipeline for review articles (literature research → paper)."""
-    from langgraph.graph import StateGraph, END
-    from agentic.state import PaperState
-    from agentic.agents import (
-        run_writer,
-        run_assessor,
-        run_rewriter,
-        run_plagiarism_check,
-        run_figure_gen,
-        run_figure_supervisor,
-    )
-    from agentic.agents.literature_researcher import run_literature_researcher
-    from agentic.orchestrator import (
-        _should_rewrite,
-        _should_regenerate_figure,
-        _collect_agent_calls,
-        _log,
-    )
-
-    builder = StateGraph(PaperState)
-
-    def lit_wrapper(state: dict) -> dict:
-        _log("Literature Researcher", "searching web & synthesizing...")
-        return _collect_agent_calls(state, run_literature_researcher(state))
-
-    def writer_wrapper(state: dict) -> dict:
-        _log("Writer (DeepSeek)", "generating review draft...")
-        return _collect_agent_calls(state, run_writer(state))
-
-    def assessor_wrapper(state: dict) -> dict:
-        _log("Assessor (Claude)", "evaluating draft...")
-        return _collect_agent_calls(state, run_assessor(state))
-
-    def rewriter_wrapper(state: dict) -> dict:
-        n = state.get("text_rewrite_count", 0) + 1
-        _log(f"Rewriter (Claude)", f"revision #{n}...")
-        return _collect_agent_calls(state, run_rewriter(state))
-
-    def plagiarism_wrapper(state: dict) -> dict:
-        _log("Plagiarism Check (DeepSeek)", "checking originality...")
-        return _collect_agent_calls(state, run_plagiarism_check(state))
-
-    def figure_gen_wrapper(state: dict) -> dict:
-        n = state.get("figure_rewrite_count", 0) + 1
-        _log(f"Figure Gen (Gemini)", f"generating figures (#{n})...")
-        return _collect_agent_calls(state, run_figure_gen(state))
-
-    def figure_supervisor_wrapper(state: dict) -> dict:
-        _log("Figure Supervisor (Claude)", "reviewing figures...")
-        return _collect_agent_calls(state, run_figure_supervisor(state))
-
-    builder.add_node("literature_researcher", lit_wrapper)
-    builder.add_node("writer", writer_wrapper)
-    builder.add_node("assessor", assessor_wrapper)
-    builder.add_node("rewriter", rewriter_wrapper)
-    builder.add_node("plagiarism_check", plagiarism_wrapper)
-    builder.add_node("figure_gen", figure_gen_wrapper)
-    builder.add_node("figure_supervisor", figure_supervisor_wrapper)
-
-    builder.set_entry_point("literature_researcher")
-    builder.add_edge("literature_researcher", "writer")
-    builder.add_edge("writer", "assessor")
-
-    builder.add_conditional_edges("assessor", _should_rewrite, {
-        "rewrite": "rewriter",
-        "pass": "plagiarism_check",
-    })
-    builder.add_edge("rewriter", "assessor")
-    builder.add_edge("plagiarism_check", "figure_gen")
-    builder.add_edge("figure_gen", "figure_supervisor")
-    builder.add_conditional_edges("figure_supervisor", _should_regenerate_figure, {
-        "regenerate": "figure_gen",
-        "pass": END,
-    })
-
-    return builder.compile()
 
 
 if __name__ == "__main__":

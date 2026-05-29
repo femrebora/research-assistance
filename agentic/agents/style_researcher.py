@@ -1,7 +1,7 @@
 """Academic Style Researcher agent — DeepSeek analyzes domain writing patterns."""
 from __future__ import annotations
 
-from agentic.bridge import call_agent, save_cache, CACHE_DIR
+from agentic.bridge import CACHE_DIR, call_agent, save_cache
 from agentic.prompts.style_researcher import SYSTEM, build_prompt
 
 STYLE_CACHE_PATH = str(CACHE_DIR / "style_guide.md")

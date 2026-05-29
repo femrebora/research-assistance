@@ -1,0 +1,12 @@
+{# HTMX partial: result of a single provider round-trip test. #}
+{% if result.ok %}
+<div class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
+    <p class="font-medium text-emerald-800">✓ {{ result.alias }} responded in {{ result.elapsed_ms }} ms</p>
+    {% if result.snippet %}<pre class="mt-1 font-mono text-emerald-900 whitespace-pre-wrap">{{ result.snippet }}</pre>{% endif %}
+</div>
+{% else %}
+<div class="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs">
+    <p class="font-medium text-rose-800">✗ {{ result.alias }} failed{% if result.elapsed_ms is defined %} after {{ result.elapsed_ms }} ms{% endif %}</p>
+    <pre class="mt-1 font-mono text-rose-900 whitespace-pre-wrap">{{ result.error }}</pre>
+</div>
+{% endif %}

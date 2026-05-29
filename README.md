@@ -53,6 +53,18 @@ The dashboard at `http://127.0.0.1:5050` gives you:
 - **PaperForge** — generate papers from code or topics with live SSE progress
   (`from agentic.web_server import paperforge_bp; app.register_blueprint(paperforge_bp)`)
 
+### Workspace
+
+Researcher-first features (see `research_assistant_development_findings.txt`):
+
+- **Projects** (`/projects`) — per-project context (title, research question, hypothesis, keywords, citation style, supervisor notes). Project context is injected as a system-prompt preamble in peer review and defense flows.
+- **Orchestration** (`/orchestration`) — model usage dashboard: per-model calls, tokens, cost, daily spend sparkline, recent activity feed. Reads `~/thesis/logs/*.jsonl`.
+- **Prompt library** (`/prompts`) — 10 curated prompts across 10 academic categories (lit review, evidence tables, scientific critic, academic tone rewrite, citation relevance, methodology defense, defense jury questions, ACMG variant interpretation, grant aims, bilingual abstract). One-click copy or send-to-Ask.
+- **AI peer review** (`/peer-review`) — runs structural / methodology / citation reviewers in parallel across multiple models, then optionally synthesises a prioritised revision plan.
+- **Defense simulator** (`/defense`) — generates jury questions from 5 examiner personas (friendly supervisor, strict external reviewer, methodology examiner, statistics examiner, field expert).
+
+CLI equivalents: `ra-project`, `ra-orchestration`, `ra-prompts`, `ra-peer-review`, `ra-defense`.
+
 ## PaperForge — Multi-Agent Paper Generation
 
 PaperForge generates complete academic papers from a codebase or a research topic using 7 specialized AI agents across 3 LLM backends.

@@ -11,10 +11,9 @@ import os
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import Optional
 
 THESIS_ROOT = Path(os.getenv("THESIS_ROOT", str(Path.home() / "thesis")))
 CACHE_DIR = THESIS_ROOT / "cache"
@@ -48,7 +47,7 @@ def _is_broken(text: str) -> bool:
 def call_agent(
     prompt: str,
     model: str = "claude",
-    system: Optional[str] = None,
+    system: str | None = None,
     temperature: float = 0.3,
     fallback: list[str] | bool | None = None,
 ) -> dict:
@@ -75,7 +74,7 @@ def call_agent(
     return primary
 
 
-def _dispatch(prompt: str, model: str, system: Optional[str] = None) -> dict:
+def _dispatch(prompt: str, model: str, system: str | None = None) -> dict:
     """Route to the right backend."""
     if model in ("claude", "sonnet", "haiku"):
         full = f"System instructions: {system}\n\n---\n\nUser query: {prompt}" if system else prompt
@@ -132,7 +131,7 @@ def _call_claude(prompt: str, model: str) -> dict:
             "cost": parsed["cost"]}
 
 
-def _call_deepseek(prompt: str, system: Optional[str] = None) -> dict:
+def _call_deepseek(prompt: str, system: str | None = None) -> dict:
     """Call DeepSeek via direct OpenAI-compatible API (bypasses CLI coding context)."""
     if not DEEPSEEK_API_KEY:
         return {"text": "(error: no DeepSeek API key — set ANTHROPIC_AUTH_TOKEN)",
@@ -205,7 +204,7 @@ def _call_gemini(prompt: str) -> dict:
             "input_tokens": None, "output_tokens": None, "cost": None}
 
 
-def load_cache(path: str) -> Optional[str]:
+def load_cache(path: str) -> str | None:
     """Load cached content from a file. Returns None if missing."""
     p = Path(path).expanduser()
     if not p.is_absolute():
@@ -225,7 +224,7 @@ def save_cache(path: str, content: str) -> Path:
     return p
 
 
-def cache_age_days(path: str) -> Optional[float]:
+def cache_age_days(path: str) -> float | None:
     """Return age of cache file in days, or None if missing."""
     p = Path(path).expanduser()
     if not p.is_absolute():

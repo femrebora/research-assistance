@@ -27,11 +27,11 @@
                 </a>
             </div>
 
-            <div class="p-3 space-y-6">
+            <div class="p-3 space-y-5">
                 {% set active = active_route or '' %}
 
                 <div>
-                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Home</p>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Research</p>
                     <ul class="space-y-0.5">
                         <li>{{ nav_link("/", "Dashboard", active) }}</li>
                         <li>{{ nav_link("/ask", "Ask (RAG)", active) }}</li>
@@ -41,7 +41,7 @@
                     </ul>
                 </div>
 
-                {% for label, cat in [("Research", "research"), ("Writing", "writing"), ("Audit", "audit"), ("Pipeline", "pipeline"), ("Meta", "meta")] %}
+                {% for label, cat in [("Research tools", "research"), ("Writing", "writing"), ("Audit", "audit"), ("Pipeline", "pipeline"), ("Meta", "meta")] %}
                     {% set tools_in_cat = tool_groups.get(cat, []) %}
                     {% if tools_in_cat %}
                     <div>
@@ -57,6 +57,35 @@
                     </div>
                     {% endif %}
                 {% endfor %}
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Workspace</p>
+                    <ul class="space-y-0.5">
+                        <li>{{ nav_link("/workspace", "Open workspace", active) }}</li>
+                        <li>{{ nav_link("/projects", "Projects", active) }}</li>
+                        <li>{{ nav_link("/orchestration", "Orchestration", active) }}</li>
+                        <li>{{ nav_link("/prompts", "Prompt library", active) }}</li>
+                        <li>{{ nav_link("/peer-review", "AI peer review", active) }}</li>
+                        <li>{{ nav_link("/defense", "Defense simulator", active) }}</li>
+                    </ul>
+                </div>
+
+                {% if paperforge_available %}
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Generate</p>
+                    <ul class="space-y-0.5">
+                        <li>{{ nav_link("/paperforge", "PaperForge", active) }}</li>
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Config</p>
+                    <ul class="space-y-0.5">
+                        <li>{{ nav_link("/providers", "Providers", active) }}</li>
+                        <li>{{ nav_link("/settings", "Settings", active) }}</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="p-4 border-t border-slate-200 mt-4">
