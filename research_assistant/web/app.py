@@ -200,8 +200,8 @@ def _render_markdown_to_html(text: str) -> str:
             content = re.sub(
                 r'\[@([a-zA-Z][a-zA-Z0-9_:.-]*)\]|(?<!\w)@([a-zA-Z][a-zA-Z0-9_:.-]*)',
                 lambda m: (
-                    f'<code class="citekey">[@\\1]</code>' if m.group(1)
-                    else f'<code class="citekey">@\\2</code>'
+                    '<code class="citekey">[@\\1]</code>' if m.group(1)
+                    else '<code class="citekey">@\\2</code>'
                 ),
                 content,
             )
