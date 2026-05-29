@@ -42,6 +42,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.5.0",
     "mypy>=1.10.0",
+    "langgraph>=0.0.1",
 ]
 
 [project.urls]
@@ -93,7 +94,7 @@ exclude = ["tests*"]
 [tool.setuptools.package-data]
 "research_assistant.web" = ["templates/*.html", "static/*.css"]
 
-# ── Test config ─────────────────────────────────────────────────────────────
+# ── Test config ──────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
@@ -143,7 +144,7 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 
-# ── Type checking ───────────────────────────────────────────────────────────
+# ── Type checking ─────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.11"
 warn_unused_configs = true
