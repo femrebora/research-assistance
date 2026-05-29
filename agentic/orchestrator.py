@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import json
 
-from langgraph.graph import END, StateGraph
-
 from agentic.agents import (
     run_assessor,
     run_code_analyst,
@@ -77,8 +75,10 @@ def _log(agent: str, msg: str = "") -> None:
     print(f"  [{agent}] {msg}", file=sys.stderr, flush=True)
 
 
-def build_graph() -> StateGraph:
+def build_graph():
     """Build and compile the paper generation state machine."""
+    from langgraph.graph import END, StateGraph
+
     builder = StateGraph(PaperState)
 
     def code_analyst_wrapper(state: dict) -> dict:
