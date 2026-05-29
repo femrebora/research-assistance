@@ -19,11 +19,11 @@ Run: python agentic/mcp_servers/chart_server.py
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -99,13 +99,14 @@ def _finalize(fig, ax, output: str, theme_name: str) -> str:
     """Save figure with tight layout. Returns output path."""
     theme = THEMES.get(theme_name, THEMES["scientific"])
 
-    # Handle long x-axis labels
+    # Force draw to populate tick labels, then handle long labels
+    fig.canvas.draw()
     labels = [t.get_text() for t in ax.get_xticklabels()]
-    max_label_len = max((len(l) for l in labels), default=0)
-    if max_label_len > 15:
-        ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=theme["tick_size"]-1)
+    max_label_len = max((len(label) for label in labels), default=0)
     if max_label_len > 30:
-        ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=theme["tick_size"]-2)
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=theme["tick_size"] - 2)
+    elif max_label_len > 15:
+        plt.setp(ax.get_xticklabels(), rotation=30, ha="right", fontsize=theme["tick_size"] - 1)
 
     fig.tight_layout(pad=1.5)
     Path(output).parent.mkdir(parents=True, exist_ok=True)
@@ -173,12 +174,12 @@ def bar_chart(
     if horizontal:
         bars = ax.barh(categories, values, color=colors, edgecolor="white", linewidth=0.8, height=0.65)
         ax.invert_yaxis()
-        for bar, val in zip(bars, values):
+        for bar, val in zip(bars, values, strict=True):
             ax.text(bar.get_width() + max(values)*0.01, bar.get_y() + bar.get_height()/2,
                     str(val), va="center", fontsize=t["tick_size"], fontweight="bold")
     else:
         bars = ax.bar(categories, values, color=colors, edgecolor="white", linewidth=0.8, width=0.65)
-        for bar, val in zip(bars, values):
+        for bar, val in zip(bars, values, strict=True):
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(values)*0.01,
                     str(val), ha="center", fontsize=t["tick_size"], fontweight="bold")
 
@@ -243,7 +244,7 @@ def grouped_bar_chart(
         offset = (i - (n_series-1)/2) * width
         bars = ax.bar(x + offset, vals, bar_width, label=name,
                        color=colors[i], edgecolor="white", linewidth=0.5)
-        for bar, val in zip(bars, vals):
+        for bar, val in zip(bars, vals, strict=True):
             if val > 0:
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(
                     max(vs) for vs in series.values())*0.01,
@@ -466,10 +467,12 @@ def heatmap_chart(
         for i in range(n_rows):
             for j in range(n_cols):
                 val = matrix[i][j]
-                text_color = "white" if isinstance(cmap, matplotlib.colors.LinearSegmentedColormap) and abs(val - 0.5) > 0.3 else "black"
+                rgb = cmap(val)[:3]
+                luminance = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+                text_color = "white" if luminance < 0.5 else "black"
                 ax.text(j, i, str(val), ha="center", va="center",
                         fontsize=t["tick_size"], fontweight="bold",
-                        color="#333" if val > 0.3 and val < 0.7 else "#222")
+                        color=text_color)
 
     ax.set_xticks(range(n_cols))
     ax.set_xticklabels(col_labels)
@@ -519,10 +522,9 @@ def timeline_chart(
     dates = [e.get("date","?") for e in events]
     labels = [e.get("label","") for e in events]
 
-    y_positions = list(range(n))
     ax.set_ylim(-0.8, n - 0.2)
 
-    for i, (date, label) in enumerate(zip(dates, labels)):
+    for i, (date, label) in enumerate(zip(dates, labels, strict=True)):
         # Timeline dot
         ax.plot(0, i, "o", color="#2166ac", markersize=12, zorder=3)
         # Date on left
@@ -586,14 +588,14 @@ def pie_chart(
     colors = _get_colors(palette, len(segments))
 
     total = sum(values) or 1
-    wedges, texts, autotexts = ax.pie(
+    wedges, _texts, autotexts = ax.pie(
         values, labels=None, colors=colors, autopct=lambda pct: f"{pct:.1f}%" if pct > 3 else "",
         startangle=90, pctdistance=0.6,
         wedgeprops={"edgecolor": "white", "linewidth": 1.5},
     )
 
     # Legend with percentages
-    legend_labels = [f"{lbl} ({val/total*100:.1f}%)" for lbl, val in zip(labels, values)]
+    legend_labels = [f"{lbl} ({val/total*100:.1f}%)" for lbl, val in zip(labels, values, strict=True)]
     ax.legend(wedges, legend_labels, title="", loc="center left",
               bbox_to_anchor=(1, 0.5), frameon=False, fontsize=t["tick_size"])
 

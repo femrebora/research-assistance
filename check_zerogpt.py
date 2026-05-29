@@ -29,10 +29,10 @@ def check_text(text: str, timeout_ms: int = 60000) -> dict | None:
     text = text[:15000]
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-
+        browser = None
         try:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
             page.goto("https://www.zerogpt.com", timeout=30000)
             page.wait_for_selector("textarea", timeout=15000)
 
@@ -79,7 +79,8 @@ def check_text(text: str, timeout_ms: int = 60000) -> dict | None:
         except Exception as e:
             result = {"error": str(e)}
         finally:
-            browser.close()
+            if browser is not None:
+                browser.close()
 
     return result
 

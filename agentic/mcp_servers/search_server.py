@@ -11,10 +11,8 @@ Configure in Claude Code: add to .claude/mcp.json
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -137,7 +135,7 @@ def search_academic(query: str, max_results: int = MAX_RESULTS) -> str:
         venue = f" *{r['venue']}*" if r.get("venue") else ""
         lines.append(
             f"{i}. **{r['title']}** ({year}) — {authors}{venue}\n"
-            f"   Cited {r['citations']}×. {r.get('abstract', '')[:250]}\n"
+            f"   Cited {r['citations']}x. {r.get('abstract', '')[:250]}\n"
             f"   {r.get('url', '')}"
         )
     return "\n\n".join(lines)
@@ -199,7 +197,7 @@ def search_all(query: str, max_results: int = MAX_RESULTS) -> str:
         authors = ", ".join(r.get("authors", [])[:3])
         out.append(
             f"{i}. **{r['title']}** ({r.get('year','?')}) — {authors}\n"
-            f"   Cited {r['citations']}×. {r.get('doi','')}"
+            f"   Cited {r['citations']}x. {r.get('doi','')}"
         )
 
     out.append("\n## Web Results\n")

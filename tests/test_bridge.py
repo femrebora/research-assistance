@@ -5,7 +5,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -73,8 +73,9 @@ class TestCacheOperations:
         assert result is None
 
     def test_cache_age_days(self):
-        from agentic.bridge import cache_age_days
         import time
+
+        from agentic.bridge import cache_age_days
         with tempfile.TemporaryDirectory() as d:
             path = str(Path(d) / "test.md")
             Path(path).write_text("hello")

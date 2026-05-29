@@ -12,12 +12,12 @@ Run: python agentic/mcp_servers/google_search_server.py
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import sys
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-import gzip
 
 from mcp.server.fastmcp import FastMCP
 
@@ -186,7 +186,7 @@ def search_news(query: str, count: int = 5) -> str:
                 for i, r in enumerate(results, 1):
                     lines.append(f"{i}. **{r['title']}**\n   {r['snippet']}\n   {r['url']}")
                 return "\n\n".join(lines)
-        except Exception as e:
+        except Exception:
             pass
 
     # Fall back to web search with "news" appended

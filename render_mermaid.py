@@ -68,9 +68,10 @@ def render_all(paper_path: Path, output_dir: Path, scale: int = 2) -> list[Path]
 
     for i, content in blocks:
         # Extract a title from the content (first non-empty, non-%% line)
-        lines = [l.strip() for l in content.splitlines()
-                 if l.strip() and not l.strip().startswith("%%")]
-        title = next((l for l in lines if not l.startswith("title ")), f"figure_{i+1}")
+        lines = [line.strip() for line in content.splitlines()
+                 if line.strip() and not line.strip().startswith("%%")]
+        title_line = next((line for line in lines if line.lower().startswith("title")), None)
+        title = re.sub(r"^title\s*:?\s*", "", title_line, flags=re.IGNORECASE).strip() if title_line else f"figure_{i+1}"
         # Clean title for filename
         safe_title = re.sub(r"[^a-zA-Z0-9_-]", "_", title)[:40]
 
@@ -109,10 +110,7 @@ def main(paper, output_dir, inline, scale):
     """Render Mermaid diagrams in a markdown file to PNG."""
     paper_path = Path(paper).resolve()
 
-    if output_dir:
-        fig_dir = Path(output_dir)
-    else:
-        fig_dir = paper_path.parent / f"{paper_path.stem}_figures"
+    fig_dir = Path(output_dir) if output_dir else paper_path.parent / f"{paper_path.stem}_figures"
 
     print(f"Paper: {paper_path}")
     print(f"Figures: {fig_dir}\n")

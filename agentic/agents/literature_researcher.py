@@ -9,11 +9,10 @@ technical report for the Writer.
 """
 from __future__ import annotations
 
+import json
 import sys
 from urllib.parse import quote
 from urllib.request import Request, urlopen
-from urllib.error import URLError
-import json
 
 from agentic.bridge import call_agent
 
@@ -42,7 +41,7 @@ def _search_semantic_scholar(topic: str, max_results: int = MAX_ACADEMIC) -> str
         from semanticscholar import SemanticScholar
         sch = SemanticScholar(timeout=30)
         papers = sch.search_paper(topic, limit=max_results,
-                                   fields=["title","year","authors"," journal",
+                                   fields=["title","year","authors","journal",
                                            "citationCount","externalIds","abstract"])
 
         results = []
@@ -64,7 +63,7 @@ def _search_semantic_scholar(topic: str, max_results: int = MAX_ACADEMIC) -> str
 
             results.append(
                 f"- **{title}** ({year}) — {author_str}{venue_str}\n"
-                f"  Cited {cited}×. {abstract}{'...' if len(abstract) >= 300 else ''}\n"
+                f"  Cited {cited}x. {abstract}{'...' if len(abstract) >= 300 else ''}\n"
                 f"  {doi_url if doi_url else ''}"
             )
 
@@ -91,7 +90,7 @@ def _search_openalex(topic: str, max_results: int = MAX_ACADEMIC) -> str:
             year = work.get("publication_year", "?")
             cited = work.get("cited_by_count", 0)
             results.append(
-                f"- **{title}** ({year}) — Cited {cited}×.\n"
+                f"- **{title}** ({year}) — Cited {cited}x.\n"
                 f"  DOI: https://doi.org/{doi}" if doi else f"- **{title}** ({year})"
             )
 
@@ -108,10 +107,10 @@ def _search_web(query: str, max_results: int = MAX_WEB) -> str:
     api_key = os.getenv("BRAVE_API_KEY", "")
     if api_key:
         try:
-            from urllib.parse import quote
-            from urllib.request import Request, urlopen
             import gzip
             import json as _json
+            from urllib.parse import quote
+            from urllib.request import Request, urlopen
 
             params = f"q={quote(query)}&count={max_results}"
             req = Request(
@@ -161,7 +160,7 @@ def _gather_research(topic: str) -> str:
     sections = []
 
     # 1. Academic literature via Semantic Scholar (primary) or OpenAlex (fallback)
-    print(f"  [Research] Semantic Scholar: searching academic papers...", file=sys.stderr)
+    print("  [Research] Semantic Scholar: searching academic papers...", file=sys.stderr)
     academic = _search_semantic_scholar(topic)
     if academic.startswith("(Semantic Scholar"):
         academic = _search_openalex(topic)

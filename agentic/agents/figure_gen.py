@@ -16,6 +16,8 @@ _FIGURE_TIMEOUT = 60  # seconds per figure render
 
 def _execute_figure(code: str, figures_dir: Path, expected_path: Path) -> str | None:
     """Write figure code to a temp file, execute it, and return the PNG path or None."""
+    import time
+    start_time = time.time()
     # Prepend directory creation so the script always works
     full_code = (
         f"import os\n"
@@ -54,9 +56,12 @@ def _execute_figure(code: str, figures_dir: Path, expected_path: Path) -> str | 
     if expected_path.is_file():
         return str(expected_path)
 
-    # Fallback: find any PNG in the figures dir (sorted by mtime, newest first)
-    pngs = sorted(figures_dir.glob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return str(pngs[0]) if pngs else None
+    # Fallback: find any PNG in the figures dir created during this execution
+    pngs = [p for p in figures_dir.glob("*.png") if p.stat().st_mtime >= start_time]
+    if pngs:
+        pngs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return str(pngs[0])
+    return None
 
 
 def run_figure_gen(state: dict) -> dict:
@@ -72,7 +77,7 @@ def run_figure_gen(state: dict) -> dict:
 
     figure_descriptions = state.get(
         "figure_descriptions",
-        "Generate 3–4 figures appropriate for a review article on personalized medicine "
+        "Generate 3 to 4 figures appropriate for a review article on personalized medicine "
         "based on the technical report. "
         "Include: "
         "1) A bar chart comparing market sizes or adoption rates across key sectors, "

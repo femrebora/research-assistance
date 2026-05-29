@@ -197,8 +197,9 @@ class TestFigureGen:
             "input_tokens": 200, "output_tokens": 100, "cost": 0.001,
         }
 
-        from agentic.agents.figure_gen import run_figure_gen
         from pathlib import Path
+
+        from agentic.agents.figure_gen import run_figure_gen
 
         with tempfile.TemporaryDirectory() as d:
             # Mock subprocess.run to create the expected PNG file
@@ -238,8 +239,9 @@ class TestFigureGen:
             "input_tokens": 300, "output_tokens": 200, "cost": 0.002,
         }
 
-        from agentic.agents.figure_gen import run_figure_gen
         from pathlib import Path
+
+        from agentic.agents.figure_gen import run_figure_gen
 
         call_count = 0
 

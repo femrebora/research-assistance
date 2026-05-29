@@ -3,23 +3,21 @@ from __future__ import annotations
 
 import json
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from agentic.state import PaperState
 from agentic.agents import (
-    run_code_analyst,
-    run_style_researcher,
-    run_ai_artifact_detector,
-    run_writer,
     run_assessor,
-    run_rewriter,
-    run_plagiarism_check,
+    run_code_analyst,
     run_figure_gen,
     run_figure_supervisor,
+    run_plagiarism_check,
+    run_rewriter,
+    run_writer,
 )
-from agentic.bridge import is_cache_fresh, load_cache
-from agentic.agents.style_researcher import STYLE_CACHE_PATH
 from agentic.agents.ai_artifact_detector import TELLS_CACHE_PATH
+from agentic.agents.style_researcher import STYLE_CACHE_PATH
+from agentic.bridge import is_cache_fresh, load_cache
+from agentic.state import PaperState
 
 MIN_SECTION_SCORE = 7
 MAX_AI_SOUNDING_SCORE = 3
@@ -97,7 +95,7 @@ def build_graph() -> StateGraph:
 
     def rewriter_wrapper(state: dict) -> dict:
         n = state.get("text_rewrite_count", 0) + 1
-        _log(f"Rewriter (Claude)", f"revision #{n}...")
+        _log("Rewriter (Claude)", f"revision #{n}...")
         return _collect_agent_calls(state, run_rewriter(state))
 
     def plagiarism_wrapper(state: dict) -> dict:
@@ -114,7 +112,7 @@ def build_graph() -> StateGraph:
 
     def figure_gen_wrapper(state: dict) -> dict:
         n = state.get("figure_rewrite_count", 0) + 1
-        _log(f"Figure Gen (Gemini)", f"generating figures (#{n})...")
+        _log("Figure Gen (Gemini)", f"generating figures (#{n})...")
         return _collect_agent_calls(state, run_figure_gen(state))
 
     def figure_supervisor_wrapper(state: dict) -> dict:
@@ -160,11 +158,10 @@ def load_caches(state: dict) -> dict:
             updates["style_guide"] = style
 
     if is_cache_fresh(TELLS_CACHE_PATH, max_age_days=7):
+        import contextlib
         tells_raw = load_cache(TELLS_CACHE_PATH)
         if tells_raw:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 updates["ai_tells"] = json.loads(tells_raw)
-            except json.JSONDecodeError:
-                pass
 
     return updates

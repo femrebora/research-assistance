@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import json
-import sys
 import os
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -73,8 +73,9 @@ class TestFullPipeline:
         All section scores are 8, so no rewrite should trigger.
         """
         import tempfile
-        from agentic.state import make_initial_state
+
         from agentic.orchestrator import build_graph
+        from agentic.state import make_initial_state
 
         # DeepSeek returns valid content via API mock
         deepseek_writer = _make_deepseek_response(MOCK_WRITER)
@@ -121,8 +122,9 @@ class TestFullPipeline:
     def test_rewrite_loop_triggers_on_low_score(self, mock_run, mock_urlopen):
         """When assessor gives a low score, the rewrite loop activates."""
         import tempfile
-        from agentic.state import make_initial_state
+
         from agentic.orchestrator import build_graph
+        from agentic.state import make_initial_state
 
         low_assessment = (
             '{"methods": {"score": 5, "ai_score": 2,'

@@ -45,9 +45,9 @@ Output format:
 FIGURE_RE = re.compile(r"\[FIGURE:\s*(.*?)\]")
 
 
-def extract_figures(text: str) -> list[tuple[int, str]]:
-    """Find all [FIGURE: description] placeholders. Returns [(position, description), ...]."""
-    return [(m.start(), m.group(1).strip()) for m in FIGURE_RE.finditer(text)]
+def extract_figures(text: str) -> list[tuple[int, int, str]]:
+    """Find all [FIGURE: description] placeholders. Returns [(start, end, description), ...]."""
+    return [(m.start(), m.end(), m.group(1).strip()) for m in FIGURE_RE.finditer(text)]
 
 
 def generate_mermaid(description: str, figure_num: int, paper_context: str = "") -> str:
@@ -87,7 +87,7 @@ def add_mermaid_to_paper(paper_path: Path, paper_context: str = "") -> str:
     print(f"Found {len(figures)} figure placeholders.\n")
 
     # Replace from end to start so positions stay valid
-    for i, (pos, desc) in enumerate(reversed(figures), 1):
+    for i, (start, end, desc) in enumerate(reversed(figures), 1):
         fig_num = len(figures) - i + 1
         print(f"  Generating Figure {fig_num}: {desc[:80]}...", file=sys.stderr)
 
@@ -95,7 +95,7 @@ def add_mermaid_to_paper(paper_path: Path, paper_context: str = "") -> str:
 
         # Build replacement: newline + mermaid block + newline
         mermaid_block = f"\n\n**Figure {fig_num}:** {desc}\n\n```mermaid\n{mermaid_code}\n```\n\n"
-        text = text[:pos] + mermaid_block + text[pos + len(f"[FIGURE: {desc}]"):]
+        text = text[:start] + mermaid_block + text[end:]
 
     return text
 

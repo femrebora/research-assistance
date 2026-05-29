@@ -72,9 +72,9 @@ def _run_pipeline_in_thread(job_id: str, code_path: str, summary: str,
     try:
         _sys.stderr = captured_stderr
 
-        from agentic.state import make_initial_state
-        from agentic.orchestrator import build_graph, load_caches
         import agentic.orchestrator as orch
+        from agentic.orchestrator import build_graph, load_caches
+        from agentic.state import make_initial_state
 
         orch.MIN_SECTION_SCORE = 7
 

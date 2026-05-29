@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date
 
-from agentic.bridge import call_agent, save_cache, CACHE_DIR
+from agentic.bridge import CACHE_DIR, call_agent, save_cache
 from agentic.prompts.ai_artifacts import SYSTEM, build_prompt
 
 TELLS_CACHE_PATH = str(CACHE_DIR / "ai_tells.json")
