@@ -179,7 +179,7 @@
 
 <script>
 // ── State ─────────
-let JOB_ID = {% if job_id %}"{{ job_id }}"{% else %}null{% endif %};
+let JOB_ID = {{ job_id|default('null') }};
 let pipelineState = null;
 let currentStep = 1;
 let selectedSectionKey = null;
@@ -423,22 +423,11 @@ function renderFigures(state){
 function renderAssessment(state){
   const a=state.assessment||{},c=document.getElementById('assessment-scores');
   if(!a||!Object.keys(a).length){c.innerHTML='<p style="color:#94a3b8;">Run Assess & Revise to evaluate the draft.</p>';return;}
-  let html=Object.entries(a).filter(([k])=>k!=='overall_notes').map(([key,val])=>{
+  c.innerHTML=Object.entries(a).filter(([k])=>k!=='overall_notes').map(([key,val])=>{
     if(typeof val!=='object') return '';
     const score=val.score||0;
     return '<div class="flex items-center gap-3"><span class="text-sm w-24" style="color:#cbd5e1;">'+key+'</span><div class="progress-bar flex-1"><div class="progress-fill" style="width:'+(score*10)+'%"></div></div><span class="score-badge '+(score>=7?'score-high':score>=5?'score-mid':'score-low')+' mono">'+score+'/10</span><span class="text-xs" style="color:#64748b;">AI: '+(val.ai_score||0)+'/10</span></div>';
   }).join('');
-  // Peer review scores
-  const pr = state.peer_review;
-  if (pr && Object.keys(pr).length) {
-    html += '<div class="mt-4 pt-4 border-t border-slate-700"><p class="text-sm font-medium mb-2" style="color:#a5b4fc;">Peer Review (3 reviewers)</p>';
-    for (const [role, data] of Object.entries(pr)) {
-      const s = data.score || 0;
-      html += '<div class="flex items-center gap-3 mb-1"><span class="text-xs w-20" style="color:#94a3b8;">'+role+'</span><div class="progress-bar flex-1"><div class="progress-fill" style="width:'+(s*10)+'%"></div></div><span class="score-badge '+(s>=7?'score-high':s>=5?'score-mid':'score-low')+' mono">'+s+'/10</span></div>';
-    }
-    html += '</div>';
-  }
-  c.innerHTML = html;
 }
 
 async function runAssessRevise(){
@@ -473,29 +462,7 @@ async function initFinalize(){
         document.getElementById('download-docx-btn').onclick=()=>window.open('/paperforge/download/'+JOB_ID+'/paper.docx');
         const orig=pipelineState.originality_score||{};
         const cost=(pipelineState.agent_calls||[]).reduce((s,c)=>s+(c.cost||0),0);
-        document.getElementById('originality-display').innerHTML='<div class="flex gap-4 mb-3" style="flex-wrap:wrap;"><span style="color:#34d399;">Originality: '+(orig.originality_pct||'?')+'%</span><span style="color:#fbbf24;">AI Likelihood: '+(orig.ai_likelihood_pct||'?')+'%</span><span class="mono" style="color:#94a3b8;">Cost: $'+cost.toFixed(4)+'</span></div>';
-        // Claim verification
-        const cv = pipelineState.claim_verify;
-        if (cv && cv.length) {
-          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">Claim Verification ('+cv.length+' claims)</p>';
-          cv.slice(0,5).forEach(c => {
-            const vc = {SUPPORTED:'color:#34d399;',PARTIAL:'color:#fbbf24;',UNSUPPORTED:'color:#f87171;',CONTRADICTED:'color:#ef4444;'}[c.verdict]||'color:#94a3b8;';
-            document.getElementById('originality-display').innerHTML += '<div class="text-xs mb-1"><span style="'+vc+'">'+c.verdict.substring(0,1)+'</span> '+c.claim.substring(0,150)+'</div>';
-          });
-          document.getElementById('originality-display').innerHTML += '</div>';
-        }
-        // External matches
-        const em = pipelineState.external_matches;
-        if (em && em.length) {
-          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">External Matches ('+em.length+' found)</p>';
-          em.forEach(m => { document.getElementById('originality-display').innerHTML += '<div class="text-xs" style="color:#94a3b8;">'+m.title+' ('+m.year+') sim:'+m.similarity+'</div>'; });
-          document.getElementById('originality-display').innerHTML += '</div>';
-        }
-        // Disclosure
-        const disc = pipelineState.disclosure;
-        if (disc && Object.keys(disc).length) {
-          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">AI Disclosure</p><div class="text-xs" style="color:#94a3b8;">Models used: '+Object.keys(disc).join(', ')+'</div></div>';
-        }
+        document.getElementById('originality-display').innerHTML='<div class="flex gap-4" style="flex-wrap:wrap;"><span style="color:#34d399;">Originality: '+(orig.originality_pct||'?')+'%</span><span style="color:#fbbf24;">AI Likelihood: '+(orig.ai_likelihood_pct||'?')+'%</span><span class="mono" style="color:#94a3b8;">Cost: $'+cost.toFixed(4)+'</span></div>';
         if (pipelineState.figures&&pipelineState.figures.length) advanceToStep(4);
       }
     }

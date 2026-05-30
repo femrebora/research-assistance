@@ -132,7 +132,7 @@ def _call_claude(prompt: str, model: str) -> dict:
 
 def _call_deepseek(prompt: str, system: str | None = None) -> dict:
     """Call DeepSeek via direct OpenAI-compatible API (bypasses CLI coding context)."""
-    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
     if not api_key:
         return {"text": "(error: no DeepSeek API key — set ANTHROPIC_AUTH_TOKEN)",
                 "model": "deepseek", "input_tokens": None, "output_tokens": None, "cost": None}

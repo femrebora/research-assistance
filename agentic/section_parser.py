@@ -49,18 +49,19 @@ def parse_sections(draft: str) -> list[dict]:
             current_lines.append(line)
         elif line.strip():
             # Content before any section heading — preamble
-            if not sections and line.strip():
+            if not sections:
                 preamble = {
                     "key": "preamble",
                     "heading": "# Preamble",
-                    "content": "",
+                    "content": line + "\n",
                     "score": None,
                     "ai_score": None,
                     "critique": None,
                     "version": 0,
                 }
                 sections.append(preamble)
-                sections[-1]["content"] = line + "\n"
+            elif sections[0]["key"] == "preamble":
+                sections[0]["content"] += line + "\n"
 
     if current is not None:
         current["content"] = "\n".join(current_lines)

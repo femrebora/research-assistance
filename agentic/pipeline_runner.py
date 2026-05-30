@@ -247,7 +247,7 @@ def run_assess_revise(job_id: str):
             delta = run_assessor(state)
             state.update(delta)
             _merge_agent_calls(state, delta)
-            assessment = state.get("assessment", {})
+            assessment = (state.get("assessment") or {})
 
             # RA Peer Review (runs in parallel with assessor result already available)
             try:
@@ -460,7 +460,7 @@ def run_finalize(job_id: str):
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "paper.md").write_text(draft, encoding="utf-8")
         (out_dir / "assessment.json").write_text(
-            __import__("json").dumps(state.get("assessment", {}), indent=2),
+            __import__("json").dumps((state.get("assessment") or {}), indent=2),
             encoding="utf-8")
         (out_dir / "originality.json").write_text(
             __import__("json").dumps(state.get("originality_score", {}), indent=2),
