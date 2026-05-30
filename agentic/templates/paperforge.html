@@ -1,338 +1,511 @@
-<!DOCTYPE html>
-<html lang="en" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PaperForge — Paper Generation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        .pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
-        .pulse-dot:nth-child(2) { animation-delay: 0.2s; }
-        .pulse-dot:nth-child(3) { animation-delay: 0.4s; }
-        .progress-line { transition: all 0.3s ease; }
-    </style>
-</head>
-<body class="h-full bg-slate-50 text-slate-800 antialiased font-sans">
-    <div class="max-w-4xl mx-auto px-8 py-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <a href="/" class="text-sm text-indigo-600 hover:text-indigo-800">&larr; Back to Research Assistant</a>
-            <h1 class="text-2xl font-semibold text-slate-900 mt-2">PaperForge</h1>
-            <p class="text-sm text-slate-500 mt-1">Multi-agent academic paper generation — from a codebase or a research topic</p>
-        </div>
+{% extends "base.html" %}
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .gradient-text { background: linear-gradient(135deg, #818cf8, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .pf-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+  .card-glow:hover { border-color: #6366f1; box-shadow: 0 0 20px rgba(99,102,241,0.15); }
+  .pf-btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .pf-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,0.4); }
+  .pf-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .pf-btn-secondary { background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 8px 18px; border-radius: 8px; font-weight: 500; cursor: pointer; }
+  .pf-btn-secondary:hover { background: #475569; }
+  .pf-input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px 14px; border-radius: 8px; width: 100%; font-size: 14px; }
+  .pf-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .pf-textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px 14px; border-radius: 8px; width: 100%; font-size: 14px; resize: vertical; }
+  .pf-textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .step { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+  .step-active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .step-done { color: #34d399; }
+  .step-pending { color: #64748b; }
+  .section-content { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; white-space: pre-wrap; font-size: 14px; line-height: 1.7; user-select: text; cursor: text; }
+  .section-content:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
+  .score-badge { font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+  .score-high { background: rgba(52,211,153,0.2); color: #34d399; }
+  .score-mid { background: rgba(251,191,36,0.2); color: #fbbf24; }
+  .score-low { background: rgba(248,113,113,0.2); color: #f87171; }
+  .figure-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .figure-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 12px; }
+  .figure-card img { width: 100%; border-radius: 6px; }
+  .progress-bar { height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #34d399); transition: width 0.3s; }
+  .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-weight: 500; z-index: 100; animation: slideUp 0.3s ease-out; }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .toast-success { background: #065f46; color: #6ee7b7; border: 1px solid #047857; }
+  .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+  .pf-highlight { background: #fbbf24; color: #1e293b; border-radius: 2px; padding: 1px 0; }
+</style>
 
-        <!-- Form -->
-        <div id="paperforge-form" class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-            <!-- Mode toggle -->
-            <div class="inline-flex rounded-md border border-slate-200 p-0.5 mb-5 bg-slate-50">
-                <label class="cursor-pointer">
-                    <input type="radio" name="mode" value="code" class="peer sr-only" checked>
-                    <span class="block px-3 py-1.5 text-sm rounded peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-medium text-slate-500">Code → Paper</span>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="mode" value="review" class="peer sr-only">
-                    <span class="block px-3 py-1.5 text-sm rounded peer-checked:bg-white peer-checked:text-indigo-700 peer-checked:font-medium text-slate-500">Topic → Review</span>
-                </label>
-            </div>
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+  <div>
+    <h1 class="text-2xl font-bold"><span class="gradient-text">PaperForge</span></h1>
+    <p class="text-slate-500 text-sm">Interactive paper generation pipeline</p>
+  </div>
+</div>
 
-            <form id="run-form" class="space-y-4">
-                <!-- Code → Paper fields -->
-                <div data-fields="code" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">
-                            Code path <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" name="code_path" data-required-for="code"
-                               placeholder="/path/to/your/project"
-                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                        <p class="text-xs text-slate-400 mt-1">Path to the codebase to analyze and write about.</p>
-                    </div>
+<!-- Step Indicator -->
+<div id="step-indicator" class="flex gap-2 mb-6" style="flex-wrap:wrap;">
+  <div class="step step-active" data-step="1"><span class="mono">1</span> Input</div>
+  <div class="step step-pending" data-step="2"><span class="mono">2</span> Generate</div>
+  <div class="step step-pending" data-step="3"><span class="mono">3</span> Edit Draft</div>
+  <div class="step step-pending" data-step="4"><span class="mono">4</span> Figures</div>
+  <div class="step step-pending" data-step="5"><span class="mono">5</span> Assess & Revise</div>
+  <div class="step step-pending" data-step="6"><span class="mono">6</span> Finalize</div>
+</div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">
-                            Project summary <span class="text-red-500">*</span>
-                        </label>
-                        <textarea name="summary" data-required-for="code" rows="3"
-                                  placeholder="Brief description of what your project does..."
-                                  class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"></textarea>
-                    </div>
-                </div>
+<!-- Saved Sessions -->
+<div id="saved-sessions" class="pf-card p-4 mb-6">
+  <div class="flex items-center gap-2 cursor-pointer" onclick="document.getElementById('sessions-list').classList.toggle('hidden'); this.querySelector('span').textContent = document.getElementById('sessions-list').classList.contains('hidden') ? '▶' : '▼';">
+    <span class="text-xs mono" style="color:#94a3b8;">▼</span>
+    <h2 class="text-sm font-semibold" style="color:#cbd5e1;">Saved Sessions</h2>
+    <span id="session-count" class="text-xs" style="color:#64748b;"></span>
+    <button class="pf-btn-secondary text-xs ml-auto" onclick="event.stopPropagation();loadSessions();">↻ Refresh</button>
+  </div>
+  <div id="sessions-list" class="mt-3 space-y-2"></div>
+</div>
 
-                <!-- Topic → Review fields -->
-                <div data-fields="review" class="space-y-4 hidden">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">
-                            Research topic <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" name="topic" data-required-for="review"
-                               placeholder="e.g. CRISPR-Based Therapeutics: Delivery Methods"
-                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                        <p class="text-xs text-slate-400 mt-1">The pipeline does its own web research (OpenAlex + DuckDuckGo) — no codebase needed.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Output directory</label>
-                        <input type="text" name="output_dir"
-                               placeholder="~/thesis/output/paper-name"
-                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-                        <p class="text-xs text-slate-400 mt-1">Defaults to ~/thesis/output/paperforge-&lt;id&gt;</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Max rewrites</label>
-                        <select name="max_rewrites"
-                                class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
-                            <option value="1">1 — fast, lower quality</option>
-                            <option value="2">2 — balanced</option>
-                            <option value="3" selected>3 — best quality (recommended)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 pt-2">
-                    <button type="submit"
-                            id="submit-btn"
-                            class="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                        Generate Paper
-                    </button>
-                    <p class="text-xs text-slate-400">Estimated: 3-5 minutes, ~$3-4</p>
-                </div>
-            </form>
-        </div>
-
-        <!-- Progress -->
-        <div id="progress-area" class="hidden bg-white rounded-lg border border-slate-200 p-6 mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-slate-900">Pipeline Progress</h3>
-                <span id="progress-status" class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Starting...</span>
-            </div>
-            <div id="progress-lines" class="space-y-1.5 mb-4 max-h-64 overflow-y-auto text-sm font-mono">
-            </div>
-            <div id="progress-indicator" class="flex items-center gap-1.5 text-sm text-slate-400">
-                <span>Running</span>
-                <span class="pulse-dot">.</span><span class="pulse-dot">.</span><span class="pulse-dot">.</span>
-            </div>
-        </div>
-
-        <!-- Results -->
-        <div id="results-area" class="hidden space-y-6">
-            <!-- Summary card -->
-            <div id="results-summary" class="bg-white rounded-lg border border-slate-200 p-6">
-            </div>
-
-            <!-- Assessment -->
-            <div id="assessment-display" class="bg-white rounded-lg border border-slate-200 p-6">
-            </div>
-
-            <!-- Paper preview -->
-            <div id="paper-preview" class="bg-white rounded-lg border border-slate-200 p-6">
-            </div>
-        </div>
+<!-- STEP 1: Input Form -->
+<div id="step-1" class="pf-card p-6">
+  <h2 class="text-xl font-semibold mb-4" style="color:#e2e8f0;">Start a New Paper</h2>
+  <form id="pipeline-form" class="space-y-4">
+    <div class="flex gap-4 mb-4">
+      <label class="flex items-center gap-2 cursor-pointer" style="color:#e2e8f0;">
+        <input type="radio" name="mode" value="code" checked onchange="toggleMode()"> Code to Paper
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer" style="color:#e2e8f0;">
+        <input type="radio" name="mode" value="review" onchange="toggleMode()"> Topic to Review
+      </label>
     </div>
+    <div id="code-fields">
+      <label class="block text-sm mb-1" style="color:#94a3b8;">Code Path</label>
+      <input type="text" name="code_path" class="pf-input mono" placeholder="/home/user/project">
+      <label class="block text-sm mb-1 mt-3" style="color:#94a3b8;">Project Summary</label>
+      <textarea name="summary" class="pf-textarea" rows="3" placeholder="Describe your project in 2-3 sentences..."></textarea>
+    </div>
+    <div id="review-fields" class="hidden">
+      <label class="block text-sm mb-1" style="color:#94a3b8;">Research Topic</label>
+      <textarea name="topic" class="pf-textarea" rows="3" placeholder="e.g., Personalized Medicine: AI and Multi-Omics Integration"></textarea>
+    </div>
+    <div style="display:flex;gap:16px;">
+      <div style="flex:1;">
+        <label class="block text-sm mb-1" style="color:#94a3b8;">Output Directory (optional)</label>
+        <input type="text" name="output_dir" class="pf-input mono" placeholder="Auto-generated if empty">
+      </div>
+      <div style="width:160px;">
+        <label class="block text-sm mb-1" style="color:#94a3b8;">Max Rewrites</label>
+        <select name="max_rewrites" class="pf-input">
+          <option value="2">2</option><option value="3" selected>3</option><option value="5">5</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="pf-btn-primary">Generate Paper</button>
+  </form>
+</div>
 
-    <script>
-    const form = document.getElementById('run-form');
-    const submitBtn = document.getElementById('submit-btn');
-    const progressArea = document.getElementById('progress-area');
-    const progressLines = document.getElementById('progress-lines');
-    const progressStatus = document.getElementById('progress-status');
-    const progressIndicator = document.getElementById('progress-indicator');
-    const resultsArea = document.getElementById('results-area');
-    const errorArea = document.getElementById('error-area');
+<!-- STEP 2: Generating Progress -->
+<div id="step-2" class="pf-card p-6 hidden">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="pulse-dot"></span>
+    <h2 class="text-lg font-semibold" style="color:#e2e8f0;">Generating Paper...</h2>
+  </div>
+  <div id="agent-progress" class="space-y-2"></div>
+  <div class="progress-bar mt-4"><div id="progress-fill" class="progress-fill" style="width:0%"></div></div>
+</div>
 
-    let currentJobId = '';
+<!-- STEP 3: Draft Workspace -->
+<div id="step-3" class="hidden">
+  <div class="flex items-center gap-3 mb-4">
+    <h2 class="text-xl font-semibold" style="color:#e2e8f0;">Draft Review</h2>
+    <span class="text-sm" style="color:#94a3b8;">Select text to give feedback</span>
+  </div>
+  <div id="sections-container" class="space-y-3"></div>
+  <div class="flex gap-3 mt-4">
+    <button class="pf-btn-primary" onclick="advanceToStep(4)">Continue to Figures →</button>
+  </div>
+</div>
 
-    const AGENT_COLORS = {
-        'Code Analyst': 'text-blue-600',
-        'Literature Researcher': 'text-blue-600',
-        'Writer': 'text-purple-600',
-        'Assessor': 'text-emerald-600',
-        'Rewriter': 'text-amber-600',
-        'Plagiarism Check': 'text-slate-600',
-        'Figure Gen': 'text-pink-600',
-        'Figure Supervisor': 'text-teal-600',
-    };
+<!-- STEP 4: Figure Review -->
+<div id="step-4" class="pf-card p-6 hidden">
+  <h2 class="text-xl font-semibold mb-4" style="color:#e2e8f0;">Review Figures</h2>
+  <div id="figures-grid" class="figure-grid mb-4"></div>
+  <div class="flex gap-3">
+    <button class="pf-btn-secondary" onclick="advanceToStep(3)">← Back to Draft</button>
+    <button class="pf-btn-primary" onclick="advanceToStep(5)">Continue to Assessment →</button>
+  </div>
+</div>
 
-    function agentColor(agent) {
-        for (const [key, cls] of Object.entries(AGENT_COLORS)) {
-            if (agent.includes(key)) return cls;
+<!-- STEP 5: Assessment -->
+<div id="step-5" class="pf-card p-6 hidden">
+  <h2 class="text-xl font-semibold mb-4" style="color:#e2e8f0;">Assess & Revise</h2>
+  <div id="assessment-scores" class="space-y-2 mb-4"></div>
+  <div id="assess-status" class="text-sm mb-3 hidden" style="color:#94a3b8;"></div>
+  <div class="flex gap-3">
+    <button class="pf-btn-secondary" onclick="advanceToStep(4)">← Back</button>
+    <button id="run-assess-btn" class="pf-btn-primary" onclick="runAssessRevise()">Run Assess & Revise</button>
+    <button id="finalize-btn" class="pf-btn-primary hidden" onclick="advanceToStep(6)">Finalize →</button>
+  </div>
+</div>
+
+<!-- STEP 6: Finalize -->
+<div id="step-6" class="pf-card p-6 hidden">
+  <h2 class="text-xl font-semibold mb-4" style="color:#e2e8f0;">Finalize & Download</h2>
+  <div id="finalize-progress" class="space-y-2 mb-4"></div>
+  <div id="finalize-results" class="hidden">
+    <div id="originality-display" class="mb-4"></div>
+    <div class="flex gap-3" style="flex-wrap:wrap;">
+      <button class="pf-btn-primary" id="download-md-btn">Download paper.md</button>
+      <button class="pf-btn-primary" id="download-docx-btn">Download paper.docx</button>
+    </div>
+  </div>
+  <div class="mt-4"><button class="pf-btn-secondary" onclick="advanceToStep(5)">← Back</button></div>
+</div>
+
+<!-- Floating feedback indicator -->
+<div id="feedback-indicator" class="hidden" style="position:fixed;bottom:24px;right:24px;z-index:50;">
+  <div class="pf-btn-primary" style="padding:12px 20px;border-radius:50px;box-shadow:0 4px 24px rgba(99,102,241,0.5);cursor:pointer;" onclick="document.getElementById('feedback-dropdown').classList.toggle('hidden')">
+    <span id="fb-count">0</span> feedbacks open
+  </div>
+  <div id="feedback-dropdown" class="hidden pf-card p-2 mt-2" style="max-height:200px;overflow-y:auto;">
+    <div id="feedback-dropdown-items"></div>
+  </div>
+</div>
+
+
+
+<script>
+// ── State ─────────
+let JOB_ID = {{ job_id|default('null') }};
+let pipelineState = null;
+let currentStep = 1;
+let selectedSectionKey = null;
+let selectedText = '';
+
+// ── Sessions ─────────
+async function loadSessions() {
+  try {
+    const resp = await fetch('/paperforge/jobs');
+    const jobs = await resp.json();
+    const container = document.getElementById('sessions-list');
+    document.getElementById('session-count').textContent = '(' + jobs.length + ')';
+    if (!jobs.length) { container.innerHTML = '<p class="text-sm" style="color:#64748b;">No saved sessions yet.</p>'; return; }
+    container.innerHTML = jobs.map(j => {
+      const dt = new Date((j.created_at||0)*1000).toLocaleString();
+      const sc = {draft_ready:'color:#818cf8;',complete:'color:#34d399;',error:'color:#f87171;'}[j.status]||'color:#fbbf24;';
+      const stepLabel = {draft_ready:'Edit',complete:'Done',error:'Error'}[j.status]||'In progress';
+      return '<div class="flex items-center gap-3 py-2 border-b border-slate-700 last:border-0" style="flex-wrap:wrap;">'+
+        '<span class="mono text-xs w-20 truncate" style="color:#64748b;" title="'+j.id+'">'+j.id.substring(0,8)+'</span>'+
+        '<span class="text-xs font-medium w-20" style="'+sc+'">Step: '+stepLabel+'</span>'+
+        '<span class="text-xs flex-1 truncate" style="color:#64748b;">'+(j.mode||'')+' — '+dt+'</span>'+
+        '<button class="pf-btn-secondary text-xs px-3 py-1" onclick="resumeSession(\''+j.id+'\',\''+j.status+'\')">Resume</button></div>';
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function resumeSession(jobId, status) {
+  JOB_ID = jobId; await fetchState();
+  if (!pipelineState) { showToast('Failed to load session', 'error'); return; }
+  document.getElementById('step-1').classList.add('hidden');
+  const stepMap = {draft_ready:3,assessing:5,finalizing:5,complete:6};
+  advanceToStep(stepMap[status]||2);
+  if (!(status in stepMap)) subscribeSSE();
+  showToast('Session loaded: '+jobId.substring(0,8), 'success');
+}
+loadSessions();
+
+// ── Step nav ─────────
+function advanceToStep(n) {
+  document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
+  const t = document.getElementById('step-'+n);
+  if (t) t.classList.remove('hidden');
+  currentStep = n;
+  document.querySelectorAll('#step-indicator .step').forEach((el,i) => {
+    el.classList.remove('step-active','step-done','step-pending');
+    if (i+1===n) el.classList.add('step-active');
+    else if (i+1<n) el.classList.add('step-done');
+    else el.classList.add('step-pending');
+  });
+  if (n===3 && pipelineState) renderSections(pipelineState);
+  if (n===4 && pipelineState) renderFigures(pipelineState);
+  if (n===5 && pipelineState) renderAssessment(pipelineState);
+  if (n===6) initFinalize();
+}
+
+function toggleMode() {
+  const m = document.querySelector('input[name="mode"]:checked').value;
+  document.getElementById('code-fields').classList.toggle('hidden', m!=='code');
+  document.getElementById('review-fields').classList.toggle('hidden', m!=='review');
+}
+
+// ── Form ─────────
+document.getElementById('pipeline-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/paperforge/run',{method:'POST',body:fd});
+  const d = await r.json();
+  if (d.error) { showToast(d.error,'error'); return; }
+  JOB_ID = d.job_id; advanceToStep(2); subscribeSSE();
+});
+
+// ── SSE ─────────
+function subscribeSSE() {
+  const es = new EventSource('/paperforge/progress/'+JOB_ID);
+  es.onmessage = (evt) => {
+    const e = JSON.parse(evt.data);
+    if (e.type==='agent'||e.type==='status') { addAgentCard(e.agent||'Status',e.message); if(e.agent)updateProgressBar(e.agent); }
+    else if (e.type==='draft_ready') { fetchStateAndAdvance(3); }
+    else if (e.type==='assessment_ready') { fetchStateAndAdvance(5); }
+    else if (['feedback_applied','figure_ready','figures_ready'].includes(e.type)) { fetchStateAndAdvance(e.type==='figures_ready'?4:null); }
+    else if (e.type==='done') { es.close(); if(e.status==='draft_ready')fetchStateAndAdvance(3); }
+    else if (e.type==='error') { showToast(e.message,'error');es.close(); }
+    else if (e.type==='complete') { fetchStateAndAdvance(6);es.close(); }
+  };
+}
+
+function addAgentCard(agent,msg) {
+  const colors = {'Code Analyst':'#818cf8','Literature Researcher':'#818cf8','Writer':'#34d399','Assessor':'#fbbf24','Rewriter':'#f472b6','Plagiarism Check':'#a78bfa','Figure Gen':'#34d399'};
+  const c = colors[agent]||'#64748b';
+  const d = document.createElement('div');
+  d.className='flex items-center gap-3 py-2';
+  d.innerHTML='<div class="mono text-xs px-2 py-1 rounded" style="background:'+c+'20;color:'+c+'">'+agent+'</div><span class="text-sm" style="color:#94a3b8;">'+msg+'</span>';
+  document.getElementById('agent-progress').appendChild(d);
+}
+const PROGRESS_STEPS=['Code Analyst','Literature Researcher','Writer'];
+function updateProgressBar(agent) {
+  const i=PROGRESS_STEPS.indexOf(agent);
+  if(i>=0) document.getElementById('progress-fill').style.width=((i+1)/PROGRESS_STEPS.length*100)+'%';
+}
+
+// ── Data ─────────
+async function fetchStateAndAdvance(step) { await fetchState(); if(pipelineState&&step) advanceToStep(step); }
+async function fetchState() {
+  if(!JOB_ID) return;
+  try { const r=await fetch('/paperforge/state/'+JOB_ID); pipelineState=await r.json(); } catch(e){}
+}
+
+// ── Sections ─────────
+function renderSections(state) {
+  const sections = state.sections||[];
+  const c = document.getElementById('sections-container');
+  const sY = window.scrollY;
+  const openFbs = Array.from(document.querySelectorAll('[id^="fb-"]:not(.hidden)')).map(el=>el.id.replace('fb-',''));
+  c.innerHTML = sections.filter(s=>s.key!=='preamble').map(s=>
+    '<div class="section-card" id="card-'+s.key+'" style="margin-bottom:16px;">'+
+      '<div class="section-header">'+
+        '<span class="font-semibold" style="color:#a5b4fc;">'+s.heading+'</span>'+
+        '<div class="flex items-center gap-2" style="flex-wrap:wrap;">'+
+          (s.score!==null?'<span class="score-badge '+(s.score>=7?'score-high':s.score>=5?'score-mid':'score-low')+'">Score: '+s.score+'/10</span>':'')+
+          (s.ai_score!=null?'<span class="score-badge '+(s.ai_score<30?'score-high':s.ai_score<50?'score-mid':'score-low')+'">Quick: '+s.ai_score+'%</span>':'')+
+          (s.zerogpt_score!=null?'<span class="score-badge '+(s.zerogpt_score<30?'score-high':s.zerogpt_score<50?'score-mid':'score-low')+'" title="ZeroGPT.com">ZeroGPT: '+s.zerogpt_score+'%</span>':
+           (s.key!=='preamble'&&s.ai_score!=null?'<span id="zg-'+s.key+'"><button class="pf-btn-secondary text-xs" style="font-size:10px;padding:1px 6px;" onclick="checkZeroGPT(\''+s.key+'\',this)">ZeroGPT</button></span>':''))+
+          '<span class="text-xs" style="color:#64748b;">v'+(s.version||0)+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:12px;" id="row-'+s.key+'">'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div class="section-content" data-section-key="'+s.key+'">'+s.content+'</div>'+
+          '<div class="mt-2 flex gap-2" style="flex-wrap:wrap;">'+
+            '<button class="pf-btn-secondary text-xs" onclick="toggleFeedback(\''+s.key+'\')">Feedback</button>'+
+            (s.version>0?'<button class="pf-btn-secondary text-xs" onclick="revertSection(\''+s.key+'\',this)">Revert (v'+s.version+')</button>':'')+
+          '</div>'+
+        '</div>'+
+        '<div id="fb-'+s.key+'" class="pf-card p-3 hidden" style="width:320px;flex-shrink:0;align-self:flex-start;position:sticky;top:16px;">'+
+          '<div class="text-xs mb-1" style="color:#94a3b8;">Selected: <span id="sel-'+s.key+'" class="italic" style="color:#cbd5e1;"></span></div>'+
+          '<textarea id="input-'+s.key+'" class="pf-textarea mb-2" rows="3" placeholder="What should change?"></textarea>'+
+          '<div class="flex gap-2">'+
+            '<button class="pf-btn-primary text-xs" onclick="submitInlineFeedback(\''+s.key+'\')">Revise</button>'+
+            '<button class="pf-btn-secondary text-xs" onclick="closeFeedback(\''+s.key+'\')">Close</button>'+
+          '</div>'+
+          '<div id="status-'+s.key+'" class="text-xs mt-1 hidden" style="color:#94a3b8;"></div>'+
+        '</div>'+
+      '</div>'+
+      (s.critique?'<div class="mt-2 text-xs" style="color:#fbbf24;">Critique: '+s.critique+'</div>':'')+
+    '</div>'
+  ).join('');
+  window.scrollTo(0,sY);
+  openFbs.forEach(key=>{const fb=document.getElementById('fb-'+key);if(fb)fb.classList.remove('hidden');});
+  renumberFeedbacks(); updateFeedbackIndicator();
+}
+
+// ── Selection ─────────
+document.addEventListener('selectionchange',()=>{
+  const sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.toString().trim()) return;
+  const text=sel.toString().trim().substring(0,3000);
+  if(!text) return;
+  let node=sel.anchorNode;
+  while(node){if(node.nodeType===1&&node.getAttribute&&node.getAttribute('data-section-key'))break;node=node.parentElement||node.parentNode;}
+  if(!node||!node.getAttribute) return;
+  const key=node.getAttribute('data-section-key');
+  if(!key) return;
+  selectedSectionKey=key; selectedText=text;
+});
+
+let _highlights=[], _feedbackCounter=0;
+
+function highlightSelection(){
+  _highlights.forEach(h=>{const p=h.parentNode;if(p)p.replaceChild(document.createTextNode(h.textContent),h);});
+  _highlights=[];
+  const sel=window.getSelection(); if(!sel||sel.isCollapsed) return;
+  try{const range=sel.getRangeAt(0);const mark=document.createElement('mark');mark.className='pf-highlight';mark.textContent=sel.toString();range.deleteContents();range.insertNode(mark);_highlights.push(mark);sel.removeAllRanges();}catch(e){}
+}
+function clearHighlights(){_highlights.forEach(h=>{const p=h.parentNode;if(p)p.replaceChild(document.createTextNode(h.textContent),h);});_highlights=[];}
+
+function toggleFeedback(key){
+  const fb=document.getElementById('fb-'+key); if(!fb) return;
+  if(fb.classList.contains('hidden')){highlightSelection();fb.classList.remove('hidden');fb.dataset.num=++_feedbackCounter;document.getElementById('sel-'+key).textContent=selectedText||'(entire section)';document.getElementById('input-'+key).focus();}
+  else closeFeedback(key);
+  renumberFeedbacks();updateFeedbackIndicator();
+}
+function closeFeedback(key){const fb=document.getElementById('fb-'+key);if(fb)fb.classList.add('hidden');clearHighlights();renumberFeedbacks();updateFeedbackIndicator();}
+function renumberFeedbacks(){let n=0;document.querySelectorAll('[id^="fb-"]:not(.hidden)').forEach(el=>{el.dataset.num=++n;});_feedbackCounter=n;}
+
+function updateFeedbackIndicator(){
+  const open=document.querySelectorAll('[id^="fb-"]:not(.hidden)');
+  const ind=document.getElementById('feedback-indicator');
+  if(open.length===0){ind.classList.add('hidden');return;}
+  ind.classList.remove('hidden');
+  document.getElementById('fb-count').textContent=open.length;
+  document.getElementById('feedback-dropdown-items').innerHTML=Array.from(open).map(el=>{
+    const key=el.id.replace('fb-',''),num=el.dataset.num||'?';
+    return '<div class="text-sm py-1 px-2 cursor-pointer" style="color:#cbd5e1;" onmouseover="this.style.background=\"#334155\"" onmouseout="this.style.background=\"transparent\"" onclick="document.getElementById(\'fb-'+key+'\').scrollIntoView({behavior:\'smooth\',block:\'center\'});document.getElementById(\'feedback-dropdown\').classList.add(\'hidden\')">#'+num+' '+key.replace(/_/g,' ')+'</div>';
+  }).join('');
+}
+
+async function submitInlineFeedback(key){
+  const input=document.getElementById('input-'+key),feedback=input.value.trim();
+  if(!feedback) return;
+  const fb=document.getElementById('fb-'+key),btn=fb.querySelector('.pf-btn-primary'),status=document.getElementById('status-'+key);
+  btn.disabled=true;status.classList.remove('hidden');status.textContent='Revising...';
+  const fd=new FormData();fd.append('section_key',key);fd.append('feedback',feedback);fd.append('selected_text',document.getElementById('sel-'+key).textContent||'');
+  try{
+    const r=await fetch('/paperforge/'+JOB_ID+'/feedback',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.error){showToast(d.error,'error');}
+    else{showToast('Section updated!','success');closeFeedback(key);await fetchState();if(pipelineState)renderSections(pipelineState);}
+  }catch(e){showToast('Request failed','error');}
+  btn.disabled=false;status.classList.add('hidden');
+}
+
+async function revertSection(key,btn){
+  if(!confirm('Revert "'+key+'" to previous version?')) return;
+  btn.disabled=true;btn.textContent='Reverting...';
+  try{const r=await fetch('/paperforge/'+JOB_ID+'/revert/'+key,{method:'POST'});const d=await r.json();
+    d.error?showToast(d.error,'error'):(showToast(key+' reverted','success'),await fetchState(),pipelineState&&renderSections(pipelineState));}
+  catch(e){showToast('Revert failed','error');}
+  btn.disabled=false;
+}
+
+async function checkZeroGPT(key,btn){
+  btn.disabled=true;btn.textContent='...';
+  try{
+    const r=await fetch('/paperforge/'+JOB_ID+'/zerogpt/'+key,{method:'POST'});const d=await r.json();
+    if(d.zerogpt_score!==undefined){
+      const span=document.getElementById('zg-'+key);
+      if(span){const pct=d.zerogpt_score,cls=pct<30?'score-high':pct<50?'score-mid':'score-low';span.innerHTML='<span class="score-badge '+cls+'" title="ZeroGPT.com">ZeroGPT: '+pct+'%</span>';}
+      showToast(key+': '+d.zerogpt_score+'% AI (ZeroGPT)','success');
+    }else{showToast('Check failed: '+(d.error||JSON.stringify(d).substring(0,100)),'error');btn.disabled=false;btn.textContent='ZeroGPT';}
+  }catch(e){showToast('Check failed: '+e.message,'error');btn.disabled=false;btn.textContent='ZeroGPT';}
+}
+
+// ── Figures ─────────
+function renderFigures(state){
+  const figs=state.figures||[],c=document.getElementById('figures-grid');
+  if(!figs.length){c.innerHTML='<p style="color:#94a3b8;">No figures yet. Finalize to generate them.</p>';return;}
+  c.innerHTML=figs.map((f,i)=>'<div class="figure-card card-glow">'+(f.png_path?'<img src="/paperforge/'+JOB_ID+'/figure/'+i+'/png" alt="Fig '+(i+1)+'" loading="lazy">':'<div class="h-48 flex items-center justify-center" style="color:#64748b;">No image</div>')+'<div class="text-sm font-medium mt-2" style="color:#e2e8f0;">Figure '+(i+1)+'</div>'+(f.review?'<div class="text-xs '+(f.review.verdict==='PASS'?'color:#34d399;':'color:#f87171;')+'">'+f.review.verdict+'</div>':'')+'</div>').join('');
+}
+
+// ── Assessment ─────────
+function renderAssessment(state){
+  const a=state.assessment||{},c=document.getElementById('assessment-scores');
+  if(!a||!Object.keys(a).length){c.innerHTML='<p style="color:#94a3b8;">Run Assess & Revise to evaluate the draft.</p>';return;}
+  let html=Object.entries(a).filter(([k])=>k!=='overall_notes').map(([key,val])=>{
+    if(typeof val!=='object') return '';
+    const score=val.score||0;
+    return '<div class="flex items-center gap-3"><span class="text-sm w-24" style="color:#cbd5e1;">'+key+'</span><div class="progress-bar flex-1"><div class="progress-fill" style="width:'+(score*10)+'%"></div></div><span class="score-badge '+(score>=7?'score-high':score>=5?'score-mid':'score-low')+' mono">'+score+'/10</span><span class="text-xs" style="color:#64748b;">AI: '+(val.ai_score||0)+'/10</span></div>';
+  }).join('');
+  // Peer review scores
+  const pr = state.peer_review;
+  if (pr && Object.keys(pr).length) {
+    html += '<div class="mt-4 pt-4 border-t border-slate-700"><p class="text-sm font-medium mb-2" style="color:#a5b4fc;">Peer Review (3 reviewers)</p>';
+    for (const [role, data] of Object.entries(pr)) {
+      const s = data.score || 0;
+      html += '<div class="flex items-center gap-3 mb-1"><span class="text-xs w-20" style="color:#94a3b8;">'+role+'</span><div class="progress-bar flex-1"><div class="progress-fill" style="width:'+(s*10)+'%"></div></div><span class="score-badge '+(s>=7?'score-high':s>=5?'score-mid':'score-low')+' mono">'+s+'/10</span></div>';
+    }
+    html += '</div>';
+  }
+  c.innerHTML = html;
+}
+
+async function runAssessRevise(){
+  const btn=document.getElementById('run-assess-btn');
+  btn.disabled=true;btn.textContent='Running...';
+  document.getElementById('assess-status').classList.remove('hidden');document.getElementById('assess-status').textContent='Assessing draft...';
+  await fetch('/paperforge/'+JOB_ID+'/assess',{method:'POST'});
+  subscribeSSE();
+  let count=0;
+  const iv=setInterval(async()=>{
+    await fetchState();
+    if(pipelineState){renderSections(pipelineState);renderAssessment(pipelineState);
+      const ok=pipelineState.assessment&&Object.entries(pipelineState.assessment).filter(([k])=>k!=='overall_notes').every(([,v])=>typeof v==='object'&&(v.score||0)>=7);
+      if(ok||++count>60){clearInterval(iv);btn.disabled=false;btn.textContent='Run Assess & Revise';document.getElementById('assess-status').classList.add('hidden');document.getElementById('finalize-btn').classList.remove('hidden');}
+    }
+  },2000);
+}
+
+// ── Finalize ─────────
+async function initFinalize(){
+  document.getElementById('finalize-progress').innerHTML='<div class="flex items-center gap-2"><span class="pulse-dot"></span> Running plagiarism check + figures...</div>';
+  await fetch('/paperforge/'+JOB_ID+'/finalize',{method:'POST'});
+  subscribeSSE();
+  let count=0;
+  const iv=setInterval(async()=>{
+    await fetchState();
+    if(pipelineState){
+      if(pipelineState.status==='complete'||++count>120){clearInterval(iv);
+        document.getElementById('finalize-progress').innerHTML='<span style="color:#34d399;">Complete!</span>';
+        document.getElementById('finalize-results').classList.remove('hidden');
+        document.getElementById('download-md-btn').onclick=()=>window.open('/paperforge/download/'+JOB_ID+'/paper.md');
+        document.getElementById('download-docx-btn').onclick=()=>window.open('/paperforge/download/'+JOB_ID+'/paper.docx');
+        const orig=pipelineState.originality_score||{};
+        const cost=(pipelineState.agent_calls||[]).reduce((s,c)=>s+(c.cost||0),0);
+        document.getElementById('originality-display').innerHTML='<div class="flex gap-4 mb-3" style="flex-wrap:wrap;"><span style="color:#34d399;">Originality: '+(orig.originality_pct||'?')+'%</span><span style="color:#fbbf24;">AI Likelihood: '+(orig.ai_likelihood_pct||'?')+'%</span><span class="mono" style="color:#94a3b8;">Cost: $'+cost.toFixed(4)+'</span></div>';
+        // Claim verification
+        const cv = pipelineState.claim_verify;
+        if (cv && cv.length) {
+          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">Claim Verification ('+cv.length+' claims)</p>';
+          cv.slice(0,5).forEach(c => {
+            const vc = {SUPPORTED:'color:#34d399;',PARTIAL:'color:#fbbf24;',UNSUPPORTED:'color:#f87171;',CONTRADICTED:'color:#ef4444;'}[c.verdict]||'color:#94a3b8;';
+            document.getElementById('originality-display').innerHTML += '<div class="text-xs mb-1"><span style="'+vc+'">'+c.verdict.substring(0,1)+'</span> '+c.claim.substring(0,150)+'</div>';
+          });
+          document.getElementById('originality-display').innerHTML += '</div>';
         }
-        return 'text-slate-500';
-    }
-
-    // ── Mode toggle: show the right fields, set `required` only on visible ones ──
-    function currentMode() {
-        const checked = form.querySelector('input[name="mode"]:checked');
-        return checked ? checked.value : 'code';
-    }
-
-    function applyMode() {
-        const mode = currentMode();
-        document.querySelectorAll('[data-fields]').forEach((block) => {
-            block.classList.toggle('hidden', block.dataset.fields !== mode);
-        });
-        document.querySelectorAll('[data-required-for]').forEach((input) => {
-            input.required = input.dataset.requiredFor === mode;
-        });
-        submitBtn.textContent = mode === 'review' ? 'Generate Review Article' : 'Generate Paper';
-    }
-
-    document.querySelectorAll('input[name="mode"]').forEach((radio) => {
-        radio.addEventListener('change', applyMode);
-    });
-    applyMode();
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const data = new FormData(form);
-        data.set('mode', currentMode());
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Starting pipeline...';
-        progressLines.innerHTML = '';
-        resultsArea.classList.add('hidden');
-        progressArea.classList.remove('hidden');
-
-        try {
-            const resp = await fetch('/paperforge/run', { method: 'POST', body: data });
-            const json = await resp.json();
-
-            if (json.error) {
-                showError(json.error);
-                return;
-            }
-
-            currentJobId = json.job_id;
-            progressStatus.textContent = 'Running';
-            subscribeProgress(json.job_id);
-        } catch (err) {
-            showError('Failed to start pipeline: ' + err.message);
+        // External matches
+        const em = pipelineState.external_matches;
+        if (em && em.length) {
+          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">External Matches ('+em.length+' found)</p>';
+          em.forEach(m => { document.getElementById('originality-display').innerHTML += '<div class="text-xs" style="color:#94a3b8;">'+m.title+' ('+m.year+') sim:'+m.similarity+'</div>'; });
+          document.getElementById('originality-display').innerHTML += '</div>';
         }
-    });
-
-    function subscribeProgress(jobId) {
-        const evtSource = new EventSource('/paperforge/progress/' + jobId);
-
-        evtSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'status' || data.type === 'agent') {
-                const line = document.createElement('div');
-                line.className = 'progress-line text-sm';
-                if (data.agent) {
-                    line.innerHTML = `<span class="${agentColor(data.agent)}">[${data.agent}]</span> <span class="text-slate-500">${data.message || ''}</span>`;
-                } else {
-                    line.innerHTML = `<span class="text-slate-400">${data.message}</span>`;
-                }
-                progressLines.appendChild(line);
-                progressLines.scrollTop = progressLines.scrollHeight;
-            }
-
-            if (data.type === 'complete') {
-                evtSource.close();
-                progressIndicator.classList.add('hidden');
-                progressStatus.textContent = 'Complete';
-                progressStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
-                showResults(data.results);
-            }
-
-            if (data.type === 'error') {
-                evtSource.close();
-                showError(data.message || 'Pipeline failed');
-            }
-
-            if (data.type === 'done') {
-                evtSource.close();
-                if (data.status === 'error') {
-                    showError('Pipeline failed. Check server logs.');
-                }
-            }
-        };
-
-        evtSource.onerror = () => {
-            evtSource.close();
-        };
-    }
-
-    function showResults(results) {
-        resultsArea.classList.remove('hidden');
-        submitBtn.disabled = false;
-        applyMode();
-
-        const summary = document.getElementById('results-summary');
-        summary.innerHTML = `
-            <h3 class="font-semibold text-slate-900 mb-3">Run Summary</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div><p class="text-xs text-slate-400">Agent calls</p><p class="text-lg font-semibold">${results.agent_calls}</p></div>
-                <div><p class="text-xs text-slate-400">Text rewrites</p><p class="text-lg font-semibold">${results.text_rewrites}</p></div>
-                <div><p class="text-xs text-slate-400">Figure rewrites</p><p class="text-lg font-semibold">${results.figure_rewrites}</p></div>
-                <div><p class="text-xs text-slate-400">Est. cost</p><p class="text-lg font-semibold">$${results.estimated_cost}</p></div>
-            </div>
-            <div class="mt-4 flex gap-3 flex-wrap">
-                <a href="/paperforge/download/${getJobId()}/paper.md"
-                   class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
-                    Download paper.md
-                </a>
-                <span class="text-xs text-slate-400 self-center">Output: ${results.output_dir}</span>
-            </div>
-        `;
-
-        if (results.assessment) {
-            const assessDiv = document.getElementById('assessment-display');
-            let rows = '';
-            for (const [section, s] of Object.entries(results.assessment)) {
-                if (typeof s === 'object' && s.score !== undefined) {
-                    const scoreColor = s.score >= 7 ? 'text-emerald-600' : s.score >= 5 ? 'text-amber-600' : 'text-red-600';
-                    rows += `<tr><td class="py-1.5 pr-4 font-medium capitalize">${section}</td>
-                             <td class="py-1.5 pr-4 ${scoreColor} font-semibold">${s.score}/10</td>
-                             <td class="py-1.5 text-sm text-slate-500">AI: ${s.ai_score}/10</td>
-                             <td class="py-1.5 text-sm text-slate-500">${(s.critique || '').substring(0, 100)}</td></tr>`;
-                }
-            }
-            assessDiv.innerHTML = `
-                <h3 class="font-semibold text-slate-900 mb-3">Assessment</h3>
-                <table class="w-full text-sm"><tbody>${rows}</tbody></table>
-            `;
+        // Disclosure
+        const disc = pipelineState.disclosure;
+        if (disc && Object.keys(disc).length) {
+          document.getElementById('originality-display').innerHTML += '<div class="mt-2 pt-2 border-t border-slate-700"><p class="text-sm font-medium mb-1" style="color:#a5b4fc;">AI Disclosure</p><div class="text-xs" style="color:#94a3b8;">Models used: '+Object.keys(disc).join(', ')+'</div></div>';
         }
-
-        if (results.draft_preview) {
-            const preview = document.getElementById('paper-preview');
-            preview.innerHTML = `
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-semibold text-slate-900">Paper Preview</h3>
-                </div>
-                <pre class="text-sm text-slate-600 whitespace-pre-wrap max-h-96 overflow-y-auto bg-slate-50 p-4 rounded">${escapeHtml(results.draft_preview)}</pre>
-            `;
-        }
+        if (pipelineState.figures&&pipelineState.figures.length) advanceToStep(4);
+      }
     }
+  },1500);
+}
 
-    function showError(msg) {
-        submitBtn.disabled = false;
-        applyMode();
-        progressIndicator.classList.add('hidden');
-        progressStatus.textContent = 'Error';
-        progressStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700';
-
-        const line = document.createElement('div');
-        line.className = 'text-sm text-red-600';
-        line.textContent = 'Error: ' + msg;
-        progressLines.appendChild(line);
-    }
-
-    function getJobId() {
-        return currentJobId;
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    </script>
-</body>
-</html>
+// ── Toast ─────────
+function showToast(msg,type){
+  const t=document.createElement('div');t.className='toast '+(type==='error'?'toast-error':'toast-success');t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),4000);
+}
+</script>
+{% endblock %}
