@@ -663,8 +663,9 @@ def radar_chart(
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(categories, fontsize=t["tick_size"])
-    ax.set_title(title, fontweight="bold", pad=25, fontsize=t["title_size"]) if title else None
-    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), frameon=False, fontsize=t["tick_size"]-1)
+    ax.set_title(title, fontweight="bold", pad=40, fontsize=t["title_size"]) if title else None
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.15), frameon=False,
+              fontsize=t["tick_size"] - 1, ncol=len(series_list))
     ax.set_yticklabels([])
     ax.grid(True, alpha=0.3)
 

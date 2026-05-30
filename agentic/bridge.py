@@ -21,8 +21,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 TIMEOUT = 600  # seconds per agent call
 
-# DeepSeek API config
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+# DeepSeek API config — read at call time, not module level
 DEEPSEEK_BASE = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"  # v3-equivalent, fast and cheap
 
@@ -133,7 +132,8 @@ def _call_claude(prompt: str, model: str) -> dict:
 
 def _call_deepseek(prompt: str, system: str | None = None) -> dict:
     """Call DeepSeek via direct OpenAI-compatible API (bypasses CLI coding context)."""
-    if not DEEPSEEK_API_KEY:
+    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+    if not api_key:
         return {"text": "(error: no DeepSeek API key — set ANTHROPIC_AUTH_TOKEN)",
                 "model": "deepseek", "input_tokens": None, "output_tokens": None, "cost": None}
 
@@ -153,7 +153,7 @@ def _call_deepseek(prompt: str, system: str | None = None) -> dict:
         f"{DEEPSEEK_BASE}/v1/chat/completions",
         data=body,
         headers={
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
         method="POST",
@@ -173,8 +173,7 @@ def _call_deepseek(prompt: str, system: str | None = None) -> dict:
             "cost": None,  # DeepSeek pricing varies
         }
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        return {"text": f"(HTTP {e.code}: {body[:300]})", "model": "deepseek",
+        return {"text": f"(HTTP {e.code} from DeepSeek API)", "model": "deepseek",
                 "input_tokens": None, "output_tokens": None, "cost": None}
     except Exception as e:
         return {"text": f"(error: {e})", "model": "deepseek",

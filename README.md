@@ -626,65 +626,82 @@ For sensitive work, use encrypted storage or a private backup location.
 
 ## PaperForge
 
-**PaperForge** is the multi-agent paper drafting module of research-assistant. It can generate structured academic drafts from either a codebase or a research topic.
+**PaperForge** is the multi-agent paper generation pipeline. It produces academic papers from codebases or research topics with an interactive web UI, ZeroGPT-aware writing, publication-quality charts, and Research Assistant tool integration.
+
+### Web UI
+
+Start the server and open `http://localhost:5055/paperforge`:
+
+```bash
+./start.sh
+```
+
+The interactive UI guides you through 6 steps:
+
+1. **Input** — code path + summary or research topic
+2. **Generate** — Outline (RA) → Code Analyst → Writer → Paraphrase (RA), with real-time SSE progress
+3. **Edit Draft** — per-section review with text selection, yellow highlighting, numbered feedback panels, and targeted revisions via Claude/DeepSeek
+4. **Figures** — review generated charts, request regenerations with feedback
+5. **Assess & Revise** — PF Assessor + RA Peer Review (structural, methodology, citation reviewers), automated revision loop
+6. **Finalize** — Plagiarism Check + RA Claim Verify + RA External Match, download paper.md and paper.docx
+
+Per-section features: Quick AI scoring, ZeroGPT checks with score persistence, version history with per-section revert (up to 10 versions), and state that survives server restarts.
+
+### Pipeline
+
+```
+Outline (RA) → Code/Lit Analyst → Writer (+ structured FIG data)
+    → Paraphrase (RA) → [Interactive Editing]
+    → Assessor + Peer Review ×3 → Rewriter
+    → Plagiarism + Claim Verify + External Match
+    → Figure Gen (Chart MCP, 8 types) → Finalize + Disclose (RA)
+```
+
+### CLI entry points
 
 <table>
   <thead>
-    <tr>
-      <th>Script</th>
-      <th>Purpose</th>
-    </tr>
+    <tr><th>Script</th><th>Purpose</th></tr>
   </thead>
   <tbody>
-    <tr>
-      <td><code>run_agentic.py</code></td>
-      <td>Generate an academic paper draft from a codebase.</td>
-    </tr>
-    <tr>
-      <td><code>run_review.py</code></td>
-      <td>Generate a review article draft from a research topic using autonomous literature discovery.</td>
-    </tr>
-    <tr>
-      <td><code>agentic/quick_ai_score.py</code></td>
-      <td>Run mechanical checks for AI-like writing patterns without making LLM calls.</td>
-    </tr>
+    <tr><td><code>run_agentic.py</code></td><td>Generate paper from a codebase (single-pass, no UI).</td></tr>
+    <tr><td><code>run_review.py</code></td><td>Generate review article from a topic via web research.</td></tr>
+    <tr><td><code>generate_final_docx.py</code></td><td>Export a pipeline run to DOCX with embedded figures.</td></tr>
+    <tr><td><code>agentic/quick_ai_score.py</code></td><td>Mechanical AI-text detection (no API calls, 7 checks).</td></tr>
+    <tr><td><code>agentic/mcp_servers/chart_server.py</code></td><td>Chart MCP server: bar, grouped_bar, line, scatter, heatmap, timeline, pie, radar.</td></tr>
+    <tr><td><code>agentic/mcp_servers/zerogpt_server.py</code></td><td>ZeroGPT MCP server: Playwright-based AI detection via zerogpt.com.</td></tr>
+    <tr><td><code>agentic/mcp_servers/google_search_server.py</code></td><td>Search MCP: Brave Search API with DuckDuckGo fallback.</td></tr>
   </tbody>
 </table>
 
-### PaperForge workflow
+### Key features
 
-```text
-Codebase or research topic
-        ↓
-Research or code analysis
-        ↓
-Draft generation
-        ↓
-Section assessment
-        ↓
-Revision loop
-        ↓
-Quality and similarity checks
-        ↓
-Final draft
-```
+| Feature | Description |
+|---|---|
+| **AI-aware writing** | Writer prompt avoids ZeroGPT triggers (em dashes, formulaic phrases, uniform sentences). Per-section Quick AI scores + ZeroGPT checks. |
+| **Structured figures** | Writer outputs `[FIG bar|title|categories|values]` format. Chart MCP renders 8 chart types at 300 DPI. |
+| **RA integration** | Outline Recommender, Peer Review (3 reviewers), Claim Verify, External Match, Paraphrase, Disclose. |
+| **State persistence** | All pipeline state on disk at `~/thesis/runs/<id>/`. Survives restarts. Atomic writes with per-job locking. |
+| **DOCX export** | Times New Roman, embedded figures, AI-tell cleanup (**, em/en dashes stripped). |
+| **Road-tested** | Generated a 7,600-word personalized medicine review (22% ZeroGPT) and a 25K-char EGFR MD simulation paper with 4 publication-quality charts. |
 
-For review articles, the code analysis step is replaced by literature research. The workflow can search academic sources and collect background material before drafting.
-
-### PaperForge usage
+### CLI usage examples
 
 ```bash
 # One-time cache setup
 ./run_agentic.py --refresh-style --domain bioinformatics
 ./run_agentic.py --refresh-artifacts
 
-# Generate a paper draft from a codebase
+# Generate paper from codebase
 ./run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
 
-# Generate a review article draft from a topic
+# Generate review article
 ./run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
 
-# Check a paper for AI-like writing patterns
+# Export pipeline run to DOCX with figures
+./generate_final_docx.py <job_id> --charts /path/to/charts
+
+# Quick AI score check
 ./agentic/quick_ai_score.py paper.md --json
 ```
 

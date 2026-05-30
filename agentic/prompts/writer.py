@@ -90,7 +90,12 @@ Important:
 - NEVER fabricate benchmark numbers, protein names, PDB codes, or trajectory statistics
 - If real performance data is unavailable, describe the output format and evaluation methodology instead
 - Mark places where citations are needed with [@citekey] placeholders
-- Mark places where figures should be inserted with [FIGURE: description]
+- Insert figures where charts help: [FIG type|title|categories|series_data]
+  Types: bar, grouped_bar, line, pie, radar, timeline
+  Format: [FIG grouped_bar|RMSD Comparison|WT,T790M,L858R,Double|Protein:0.277,0.259,0.254,0.231|ATP:0.307,0.286,0.272,0.280]
+  For pie: [FIG pie|Market Share|Illumina:24,Roche:18,Other:58]
+  For line: [FIG line|Cost Trend|2016,2018,2020,2022,2024|Cost:100,50,20,8,3]
+  Use ONLY data from the technical report. Never invent numbers.
 - Vary sentence structure and openings — read like a human scientist wrote it
 - NO em dashes (—) anywhere in the text. Use commas, periods, or parentheses.
 - Keep each sentence under ~35 words. Break long sentences into shorter ones.
