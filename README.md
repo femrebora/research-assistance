@@ -11,14 +11,6 @@ It combines a Flask Web UI, Zotero-indexed retrieval, multi-model comparison, ac
 
 The goal is to help researchers work with their own papers, ask better questions, compare model outputs, write more structured drafts, and keep AI-assisted research transparent.
 
-<!--
-## Demo
-
-<p align="center">
-  <img src="docs/assets/research-assistant-demo.gif" alt="research-assistant Web UI demo" width="900">
-</p>
--->
-
 ## Main features
 
 <table>
@@ -88,6 +80,123 @@ Open the Web UI:
 http://127.0.0.1:5050
 ```
 
+The setup script creates a Python virtual environment, installs the package in editable mode, creates a `.env` file from `env.example`, and prepares the default local research folders.
+
+Default locations:
+
+<table>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Default path</th>
+      <th>What it is used for</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Virtual environment</td>
+      <td><code>~/.venvs/thesis</code></td>
+      <td>Python environment used to run the app and CLI commands.</td>
+    </tr>
+    <tr>
+      <td>Project workspace</td>
+      <td><code>~/thesis</code></td>
+      <td>Main local workspace for logs, drafts, project files, and research outputs.</td>
+    </tr>
+    <tr>
+      <td>Model usage logs</td>
+      <td><code>~/thesis/logs/</code></td>
+      <td>Saved model calls used for AI disclosure and transparency.</td>
+    </tr>
+    <tr>
+      <td>Zotero PDF storage</td>
+      <td><code>~/Zotero/storage</code></td>
+      <td>Local Zotero attachment folder used for PDF indexing.</td>
+    </tr>
+    <tr>
+      <td>Application settings</td>
+      <td><code>.env</code></td>
+      <td>API keys, Zotero settings, provider commands, paths, and timeouts.</td>
+    </tr>
+  </tbody>
+</table>
+
+## First time setup checklist
+
+After starting the Web UI, follow this order:
+
+<table>
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>Where to go</th>
+      <th>What to do</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><code>/settings</code></td>
+      <td>Add at least one model provider API key or configure a CLI provider.</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code>/providers</code></td>
+      <td>Test that the selected provider works before writing or indexing.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><code>/settings</code></td>
+      <td>Add Zotero user ID, Zotero API key, <code>THESIS_ROOT</code>, and <code>ZOTERO_STORAGE</code>.</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code>/index</code></td>
+      <td>Index Zotero PDFs so the Ask and Evidence tools can retrieve from your own papers.</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><code>/projects</code></td>
+      <td>Create or update the active research project with title, research question, hypothesis, keywords, citation style, and supervisor notes.</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><code>/ask</code></td>
+      <td>Ask a small test question to confirm that citations and retrieved evidence are working.</td>
+    </tr>
+  </tbody>
+</table>
+
+## Daily workflow
+
+A simple daily workflow is:
+
+```text
+1. Start the environment
+2. Open the Web UI
+3. Check the active project
+4. Ask or compare model answers using your indexed papers
+5. Save useful outputs into the Workspace
+6. Audit or verify claims before adding text to your thesis
+7. Generate disclosure logs when needed
+```
+
+Commands:
+
+```bash
+cd research-assistant
+source ~/.venvs/thesis/bin/activate
+ra-web
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5050
+```
+
+Use the Web UI for most work. Use the CLI when you want repeatable commands, scripting, or batch workflows.
+
 ## Configuration
 
 You can configure the application from the browser:
@@ -129,6 +238,297 @@ Model calls are logged under:
 ```
 
 These logs can be used to prepare AI usage disclosure text for thesis, manuscript, or institutional transparency requirements.
+
+## How to organize your work
+
+The tool works best when each thesis, manuscript, or review article has a clear folder inside `THESIS_ROOT`.
+
+Recommended structure:
+
+```text
+~/thesis/
+├── projects/
+│   └── my-thesis-project/
+│       ├── drafts/
+│       ├── notes/
+│       ├── outlines/
+│       ├── evidence/
+│       ├── exports/
+│       └── paperforge/
+├── logs/
+├── indexes/
+└── disclosures/
+```
+
+Suggested use for each folder:
+
+<table>
+  <thead>
+    <tr>
+      <th>Folder</th>
+      <th>Save here</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>drafts/</code></td>
+      <td>Thesis chapters, manuscript sections, revised paragraphs, and long form writing.</td>
+    </tr>
+    <tr>
+      <td><code>notes/</code></td>
+      <td>Your own reading notes, supervisor comments, meeting notes, and research ideas.</td>
+    </tr>
+    <tr>
+      <td><code>outlines/</code></td>
+      <td>Generated outlines, chapter plans, article structures, and section maps.</td>
+    </tr>
+    <tr>
+      <td><code>evidence/</code></td>
+      <td>Important cited answers, claim verification outputs, citation audit results, and evidence tables.</td>
+    </tr>
+    <tr>
+      <td><code>exports/</code></td>
+      <td>Final copied outputs, disclosure text, report exports, and material prepared for submission.</td>
+    </tr>
+    <tr>
+      <td><code>paperforge/</code></td>
+      <td>PaperForge drafts, review article outputs, quality checks, and revision loop outputs.</td>
+    </tr>
+    <tr>
+      <td><code>logs/</code></td>
+      <td>Automatic model usage logs. Keep this folder if your thesis or journal requires AI disclosure.</td>
+    </tr>
+  </tbody>
+</table>
+
+You can keep the default `~/thesis` path, or change it from `/settings` by editing `THESIS_ROOT`.
+
+## Where outputs are saved
+
+research-assistant has three kinds of saved work:
+
+<table>
+  <thead>
+    <tr>
+      <th>Output type</th>
+      <th>Where to find it</th>
+      <th>How to use it later</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Saved Q&amp;A sessions</td>
+      <td><code>/sessions</code></td>
+      <td>Return to previous questions, review cited answers, and delete sessions you no longer need.</td>
+    </tr>
+    <tr>
+      <td>Workspace files</td>
+      <td><code>/workspace</code> and your <code>THESIS_ROOT</code> folder</td>
+      <td>Continue writing, copy text into your thesis, or organize outputs into project folders.</td>
+    </tr>
+    <tr>
+      <td>Project metadata</td>
+      <td><code>/projects</code></td>
+      <td>Reuse project title, research question, hypothesis, keywords, citation style, and supervisor notes across tools.</td>
+    </tr>
+    <tr>
+      <td>Model logs</td>
+      <td><code>~/thesis/logs/</code> by default</td>
+      <td>Generate AI disclosure text and review which model was used for which task.</td>
+    </tr>
+    <tr>
+      <td>PaperForge outputs</td>
+      <td>The folder passed with <code>--output</code>, or the default output folder used by the module</td>
+      <td>Review generated drafts, revision passes, and quality checks before using them in academic writing.</td>
+    </tr>
+    <tr>
+      <td>Zotero indexed evidence</td>
+      <td>Managed by the local index created from Zotero PDFs</td>
+      <td>Use Ask, Evidence, Claim Verify, Audit, and Outline tools with citation aware retrieval.</td>
+    </tr>
+  </tbody>
+</table>
+
+## How to return to previous work
+
+To continue a previous session:
+
+```bash
+cd research-assistant
+source ~/.venvs/thesis/bin/activate
+ra-web
+```
+
+Then:
+
+<table>
+  <thead>
+    <tr>
+      <th>Goal</th>
+      <th>Go to</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Continue a saved question or answer</td>
+      <td><code>/sessions</code></td>
+    </tr>
+    <tr>
+      <td>Continue a thesis or manuscript file</td>
+      <td><code>/workspace</code></td>
+    </tr>
+    <tr>
+      <td>Check or change the active project</td>
+      <td><code>/projects</code></td>
+    </tr>
+    <tr>
+      <td>Check model usage and costs</td>
+      <td><code>/orchestration</code></td>
+    </tr>
+    <tr>
+      <td>Generate or review AI disclosure text</td>
+      <td><code>ra-disclose</code> or the disclosure tools in the Web UI</td>
+    </tr>
+    <tr>
+      <td>Run another Zotero indexing pass</td>
+      <td><code>/index</code> or <code>ra-researcher index</code></td>
+    </tr>
+  </tbody>
+</table>
+
+Good practice:
+
+```text
+Before closing the app:
+1. Copy important model outputs into a Workspace file.
+2. Keep cited answers in Sessions if you may need the evidence trail later.
+3. Export or save important drafts under the correct project folder.
+4. Keep logs if you need transparent AI usage records.
+```
+
+## Safe use and backup
+
+Do not commit private files, API keys, unpublished thesis drafts, Zotero PDFs, or model logs to a public GitHub repository.
+
+Recommended backup items:
+
+<table>
+  <thead>
+    <tr>
+      <th>Back up</th>
+      <th>Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>.env</code></td>
+      <td>Contains your local configuration. Store it securely because it may contain API keys.</td>
+    </tr>
+    <tr>
+      <td><code>THESIS_ROOT</code></td>
+      <td>Contains your drafts, notes, outputs, logs, and project files.</td>
+    </tr>
+    <tr>
+      <td>Zotero library</td>
+      <td>Contains the papers and metadata used for citation aware retrieval.</td>
+    </tr>
+  </tbody>
+</table>
+
+A safe backup command for your thesis workspace is:
+
+```bash
+tar -czf thesis-backup-$(date +%Y%m%d).tar.gz ~/thesis
+```
+
+For sensitive work, use encrypted storage or a private backup location.
+
+## Typical use cases
+
+<table>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Recommended page or command</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ask a question from your Zotero papers</td>
+      <td><code>/ask</code> or <code>ra-researcher ask</code></td>
+    </tr>
+    <tr>
+      <td>Compare model answers before trusting one answer</td>
+      <td><code>/compare</code> or <code>ra-compare</code></td>
+    </tr>
+    <tr>
+      <td>Build a thesis or manuscript outline</td>
+      <td><code>/outline-recommender</code></td>
+    </tr>
+    <tr>
+      <td>Check whether a claim is supported</td>
+      <td><code>ra-claim-verify</code></td>
+    </tr>
+    <tr>
+      <td>Review citation quality</td>
+      <td><code>ra-audit</code></td>
+    </tr>
+    <tr>
+      <td>Improve a paragraph without changing meaning</td>
+      <td><code>ra-paraphrase</code> or paraphrase tools in the Web UI</td>
+    </tr>
+    <tr>
+      <td>Prepare for thesis defense</td>
+      <td><code>/defense</code></td>
+    </tr>
+    <tr>
+      <td>Generate AI usage disclosure</td>
+      <td><code>ra-disclose</code></td>
+    </tr>
+    <tr>
+      <td>Generate a paper draft from a codebase or topic</td>
+      <td><code>/paperforge</code>, <code>run_agentic.py</code>, or <code>run_review.py</code></td>
+    </tr>
+  </tbody>
+</table>
+
+## Troubleshooting
+
+<table>
+  <thead>
+    <tr>
+      <th>Problem</th>
+      <th>What to check</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>The Web UI does not start</td>
+      <td>Activate the environment with <code>source ~/.venvs/thesis/bin/activate</code>, then run <code>ra-web</code> again.</td>
+    </tr>
+    <tr>
+      <td>A model provider fails</td>
+      <td>Open <code>/providers</code>, check your API key in <code>/settings</code>, and confirm the selected provider alias is configured.</td>
+    </tr>
+    <tr>
+      <td>Zotero papers are not found</td>
+      <td>Check <code>ZOTERO_USER_ID</code>, <code>ZOTERO_API_KEY</code>, and <code>ZOTERO_STORAGE</code>. Then run indexing again from <code>/index</code>.</td>
+    </tr>
+    <tr>
+      <td>Answers do not contain useful citations</td>
+      <td>Index more relevant PDFs, ask a narrower question, or add stronger keywords to the active project.</td>
+    </tr>
+    <tr>
+      <td>CLI provider times out</td>
+      <td>Increase <code>CLI_TIMEOUT</code> in <code>/settings</code> or in <code>.env</code>.</td>
+    </tr>
+    <tr>
+      <td>You cannot find old work</td>
+      <td>Check <code>/sessions</code>, <code>/workspace</code>, the active project in <code>/projects</code>, and the folders under <code>THESIS_ROOT</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
 
 ## Web UI
 
