@@ -69,7 +69,7 @@ The goal is to help researchers work with their own papers, ask better questions
 ```bash
 git clone https://github.com/femrebora/research-assistant
 cd research-assistant
-bash setup.sh
+bash scripts/setup.sh
 source ~/.venvs/thesis/bin/activate
 ra-web
 ```
@@ -487,7 +487,7 @@ For sensitive work, use encrypted storage or a private backup location.
     </tr>
     <tr>
       <td>Generate a paper draft from a codebase or topic</td>
-      <td><code>/paperforge</code>, <code>run_agentic.py</code>, or <code>run_review.py</code></td>
+      <td><code>/paperforge</code>, <code>scripts/run_agentic.py</code>, or <code>scripts/run_review.py</code></td>
     </tr>
   </tbody>
 </table>
@@ -633,7 +633,7 @@ For sensitive work, use encrypted storage or a private backup location.
 Start the server and open `http://localhost:5055/paperforge`:
 
 ```bash
-./start.sh
+./scripts/start.sh
 ```
 
 The interactive UI guides you through 6 steps:
@@ -664,9 +664,9 @@ Outline (RA) → Code/Lit Analyst → Writer (+ structured FIG data)
     <tr><th>Script</th><th>Purpose</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>run_agentic.py</code></td><td>Generate paper from a codebase (single-pass, no UI).</td></tr>
-    <tr><td><code>run_review.py</code></td><td>Generate review article from a topic via web research.</td></tr>
-    <tr><td><code>generate_final_docx.py</code></td><td>Export a pipeline run to DOCX with embedded figures.</td></tr>
+    <tr><td><code>scripts/run_agentic.py</code></td><td>Generate paper from a codebase (single-pass, no UI).</td></tr>
+    <tr><td><code>scripts/run_review.py</code></td><td>Generate review article from a topic via web research.</td></tr>
+    <tr><td><code>scripts/generate_final_docx.py</code></td><td>Export a pipeline run to DOCX with embedded figures.</td></tr>
     <tr><td><code>agentic/quick_ai_score.py</code></td><td>Mechanical AI-text detection (no API calls, 7 checks).</td></tr>
     <tr><td><code>agentic/mcp_servers/chart_server.py</code></td><td>Chart MCP server: bar, grouped_bar, line, scatter, heatmap, timeline, pie, radar.</td></tr>
     <tr><td><code>agentic/mcp_servers/zerogpt_server.py</code></td><td>ZeroGPT MCP server: Playwright-based AI detection via zerogpt.com.</td></tr>
@@ -689,17 +689,17 @@ Outline (RA) → Code/Lit Analyst → Writer (+ structured FIG data)
 
 ```bash
 # One-time cache setup
-./run_agentic.py --refresh-style --domain bioinformatics
-./run_agentic.py --refresh-artifacts
+./scripts/run_agentic.py --refresh-style --domain bioinformatics
+./scripts/run_agentic.py --refresh-artifacts
 
 # Generate paper from codebase
-./run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
+./scripts/run_agentic.py /path/to/project --summary "What it does" --output /tmp/paper
 
 # Generate review article
-./run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
+./scripts/run_review.py --topic "CRISPR-Based Therapeutics: Delivery Methods"
 
 # Export pipeline run to DOCX with figures
-./generate_final_docx.py <job_id> --charts /path/to/charts
+./scripts/generate_final_docx.py <job_id> --charts /path/to/charts
 
 # Quick AI score check
 ./agentic/quick_ai_score.py paper.md --json

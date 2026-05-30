@@ -281,10 +281,7 @@ def timeline(
     y_zero = np.zeros(len(events))
 
     # Sizing: values-driven or uniform
-    if values:
-        marker_sizes = [max(20, abs(v) * 10) for v in values]
-    else:
-        marker_sizes = [marker_size] * len(events)
+    marker_sizes = [max(20, abs(v) * 10) for v in values] if values else [marker_size] * len(events)
 
     ax.scatter(
         dates,
@@ -413,8 +410,8 @@ def bubble_chart(
     elif labels is not None:
         # Discrete categories
         seen: dict[str, str] = {}
-        for i, (comp, f, m, s, lbl) in enumerate(
-            zip(companies, funding, maturity, sizes, labels)
+        for _i, (comp, f, m, s, lbl) in enumerate(  # noqa: B007
+            zip(companies, funding, maturity, sizes, labels, strict=False)
         ):
             if lbl not in seen:
                 seen[lbl] = colors[len(seen) % len(colors)]
@@ -443,7 +440,7 @@ def bubble_chart(
         )
 
     # Label each bubble with company name
-    for comp, f, m in zip(companies, funding, maturity):
+    for comp, f, m in zip(companies, funding, maturity, strict=False):
         ax.annotate(
             comp,
             (f, m),
@@ -632,7 +629,7 @@ def trend_line(
 if __name__ == "__main__":
     import sys
 
-    demo_dir = Path("demo_charts")
+    demo_dir = Path(__file__).resolve().parent.parent / "assets" / "demo_charts"
     demo_dir.mkdir(exist_ok=True)
 
     print("Generating demo charts...", file=sys.stderr)

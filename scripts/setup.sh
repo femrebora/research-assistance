@@ -3,6 +3,7 @@
 # Run from inside the research assistant directory.
 
 set -e
+cd "$(dirname "$0")/.."
 
 VENV="${RA_VENV:-$HOME/.venvs/thesis}"
 THESIS_ROOT_DEFAULT="$HOME/thesis"

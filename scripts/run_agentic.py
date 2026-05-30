@@ -14,12 +14,12 @@ import sys
 from pathlib import Path
 
 import click
-from research_assistant.common import THESIS_ROOT
 
 from agentic.agents.ai_artifact_detector import run_ai_artifact_detector
 from agentic.agents.style_researcher import run_style_researcher
 from agentic.orchestrator import build_graph, load_caches
 from agentic.state import make_initial_state
+from research_assistant.common import THESIS_ROOT
 
 
 @click.command()
@@ -40,7 +40,7 @@ def main(code_path, summary, output, min_score, max_rewrites, refresh_style, ref
 
     if launch_ui:
         import subprocess
-        ui_path = Path(__file__).parent / "agentic" / "ui" / "dashboard.py"
+        ui_path = Path(__file__).resolve().parent.parent / "agentic" / "ui" / "dashboard.py"
         subprocess.run(["streamlit", "run", str(ui_path)])
         return
 
@@ -58,7 +58,7 @@ def main(code_path, summary, output, min_score, max_rewrites, refresh_style, ref
 
     if not code_path or not summary:
         click.echo("Error: CODE_PATH and --summary required for pipeline run.\n")
-        click.echo("Example: ./run_agentic.py /path/to/code --summary 'My project' --output /tmp/out")
+        click.echo("Example: ./scripts/run_agentic.py /path/to/code --summary 'My project' --output /tmp/out")
         sys.exit(1)
 
     click.echo("Loading knowledge caches...")

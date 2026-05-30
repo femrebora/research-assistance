@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Generate final DOCX from a pipeline run with real charts embedded."""
-import json, re, shutil, sys
+import json
+import re
+import shutil
+import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agentic.docx_export import export_to_docx
 
 

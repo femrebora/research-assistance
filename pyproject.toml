@@ -93,7 +93,7 @@ include = ["research_assistant*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-"research_assistant.web" = ["templates/*.html", "static/*.css"]
+"research_assistant.web" = ["templates/*.html", "templates/macros/*.html", "static/*.css", "static/*.js"]
 
 # ── Test config ──────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
