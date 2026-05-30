@@ -1,0 +1,273 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   Research Assistant — Reusable UI Components
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{# ── HelpTooltip: "What is this?" expander ─────────────────────────────── #}
+{% macro help_tooltip(text) -%}
+<span class="help-wrap" style="position:relative;display:inline-flex;align-items:center;margin-left:0.25rem;">
+  <button type="button" class="help-trigger" aria-label="What is this?" tabindex="0"
+          onclick="this.nextElementSibling.classList.toggle('visible')"
+          onblur="setTimeout(()=>this.nextElementSibling.classList.remove('visible'),200)">
+    ?
+  </button>
+  <span class="help-tooltip">{{ text }}</span>
+</span>
+{%- endmacro %}
+
+
+{# ── FormField: consistent form input ───────────────────────────────────── #}
+{% macro form_field(field, value='') -%}
+<div>
+  <label class="form-label" for="f-{{ field.name }}">
+    {{ field.label }}
+    {% if field.required %}<span class="form-required">*</span>{% endif %}
+  </label>
+  {% if field.help %}
+    <p class="form-helper">{{ field.help }}</p>
+  {% endif %}
+
+  {% if field.kind == "textarea" %}
+    <textarea id="f-{{ field.name }}" name="{{ field.name }}"
+              rows="{{ field.rows or 4 }}"
+              {% if field.required %}required{% endif %}
+              placeholder="{{ field.placeholder or '' }}"
+              class="form-textarea">{{ value }}</textarea>
+
+  {% elif field.kind == "select" %}
+    <select id="f-{{ field.name }}" name="{{ field.name }}" class="form-select">
+      {% for opt in field.resolved_options() %}
+        <option value="{{ opt }}" {% if opt == (value or field.default)|string %}selected{% endif %}>
+          {{ opt or "(none)" }}
+        </option>
+      {% endfor %}
+    </select>
+
+  {% elif field.kind == "number" %}
+    <input id="f-{{ field.name }}" type="number" name="{{ field.name }}"
+           {% if field.default is not none %}value="{{ value or field.default }}"{% endif %}
+           {% if field.min is not none %}min="{{ field.min }}"{% endif %}
+           {% if field.max is not none %}max="{{ field.max }}"{% endif %}
+           {% if field.step is not none %}step="{{ field.step }}"{% endif %}
+           class="form-input" style="max-width:8rem;">
+
+  {% elif field.kind == "checkbox" %}
+    <label class="inline-flex items-center gap-2 text-sm" style="color:var(--color-text-primary);">
+      <input id="f-{{ field.name }}" type="checkbox" name="{{ field.name }}"
+             class="form-checkbox" {% if value %}checked{% endif %}>
+      <span>{{ field.label }}</span>
+    </label>
+
+  {% elif field.kind == "multiselect" %}
+    <div style="display:flex;flex-wrap:wrap;gap:0.25rem 1rem;">
+      {% for opt in field.resolved_options() %}
+        <label class="inline-flex items-center gap-1.5 text-sm" style="color:var(--color-text-primary);">
+          <input type="checkbox" name="{{ field.name }}" value="{{ opt }}"
+                 class="form-checkbox" {% if opt in (value or []) %}checked{% endif %}>
+          <span>{{ opt }}</span>
+        </label>
+      {% endfor %}
+    </div>
+
+  {% elif field.kind == "file_or_text" %}
+    <textarea id="f-{{ field.name }}" name="{{ field.name }}_text"
+              rows="{{ field.rows or 8 }}"
+              placeholder="{{ field.placeholder or 'Paste content here…' }}"
+              class="form-textarea" style="font-family:monospace;">{{ value }}</textarea>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
+      <span class="form-helper" style="margin:0;">…or path:</span>
+      <input type="text" name="{{ field.name }}_path"
+             placeholder="e.g. drafts/chapter1.md"
+             class="form-input" style="font-family:monospace;font-size:0.75rem;">
+    </div>
+
+  {% else %} {# text #}
+    <input id="f-{{ field.name }}" type="text" name="{{ field.name }}"
+           {% if field.required %}required{% endif %}
+           value="{{ value or field.default or '' }}"
+           placeholder="{{ field.placeholder or '' }}"
+           class="form-input">
+  {% endif %}
+</div>
+{%- endmacro %}
+
+
+{# ── AdvancedSettings: collapsible advanced controls ────────────────────── #}
+{% macro advanced_settings() -%}
+<button type="button" class="advanced-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')"
+        aria-expanded="false">
+  Advanced settings
+</button>
+<div class="advanced-panel">
+  {{ caller() }}
+</div>
+{%- endmacro %}
+
+
+{# ── StatusCard ─────────────────────────────────────────────────────────── #}
+{% macro status_card(label, value, sub='', status='', href='') -%}
+<div class="stat-card {% if href %}card-hover{% endif %}" {% if href %}onclick="location='{{ href }}'" style="cursor:pointer;"{% endif %}>
+  <div class="stat-card-label">
+    {% if status == 'ok' %}
+      <span class="status-dot status-dot-ok" style="margin-right:0.25rem;"></span>
+    {% elif status == 'warn' %}
+      <span class="status-dot status-dot-warn" style="margin-right:0.25rem;"></span>
+    {% elif status == 'danger' %}
+      <span class="status-dot status-dot-danger" style="margin-right:0.25rem;"></span>
+    {% endif %}
+    {{ label }}
+  </div>
+  <div class="stat-card-value">{{ value }}</div>
+  {% if sub %}<div class="stat-card-sub">{{ sub }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+
+{# ── EmptyState ─────────────────────────────────────────────────────────── #}
+{% macro empty_state(title, body, primary_action='', primary_href='', secondary_action='', secondary_href='') -%}
+<div class="state-box empty-state">
+  <div class="state-icon">📭</div>
+  <div class="state-title">{{ title }}</div>
+  <div class="state-body">{{ body }}</div>
+  {% if primary_action or secondary_action %}
+  <div class="state-actions">
+    {% if primary_action %}
+      <a href="{{ primary_href }}" class="btn btn-primary">{{ primary_action }}</a>
+    {% endif %}
+    {% if secondary_action %}
+      <a href="{{ secondary_href }}" class="btn btn-secondary">{{ secondary_action }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+
+{# ── ErrorState ─────────────────────────────────────────────────────────── #}
+{% macro error_state(title, body, show_diagnostics=false, diagnostics='') -%}
+<div class="state-box error-state">
+  <div class="state-icon">⚠️</div>
+  <div class="state-title">{{ title }}</div>
+  <div class="state-body">{{ body }}</div>
+  <div class="state-actions">
+    <a href="/" class="btn btn-primary">Go to dashboard</a>
+    <a href="/settings" class="btn btn-secondary">Open settings</a>
+    <button type="button" class="btn btn-secondary" onclick="location.reload()">Retry</button>
+  </div>
+  {% if show_diagnostics and diagnostics %}
+    <div style="margin-top:1rem;text-align:left;width:100%;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+        <span class="form-helper" style="margin:0;">Diagnostic summary</span>
+        <button type="button" class="copy-btn" onclick="copyDiagnostics(this)">Copy</button>
+      </div>
+      <pre class="diagnostic-box" id="diagnostics">{{ diagnostics }}</pre>
+    </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+
+{# ── LoadingState ───────────────────────────────────────────────────────── #}
+{% macro loading_state(message='Loading…') -%}
+<div class="state-box">
+  <div class="spinner" style="width:1.5rem;height:1.5rem;"></div>
+  <div class="state-body" style="margin-top:0.75rem;margin-bottom:0;">{{ message }}</div>
+</div>
+{%- endmacro %}
+
+
+{# ── Page header ────────────────────────────────────────────────────────── #}
+{% macro page_header(title, subtitle='') -%}
+<div class="mb-6">
+  <h2 class="page-title">{{ title }}</h2>
+  {% if subtitle %}<p class="page-subtitle">{{ subtitle }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+
+{# ── Card container ─────────────────────────────────────────────────────── #}
+{% macro card(class='') -%}
+<div class="card card-padded {{ class }}">
+  {{ caller() }}
+</div>
+{%- endmacro %}
+
+
+{# ── Alert ──────────────────────────────────────────────────────────────── #}
+{% macro alert(type='info', dismissible=false) -%}
+<div class="alert alert-{{ type }} mb-5{% if dismissible %} relative{% endif %}">
+  {% if dismissible %}
+    <button type="button" class="absolute top-2 right-2 text-current opacity-50 hover:opacity-100" onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:1rem;">&times;</button>
+  {% endif %}
+  {{ caller() }}
+</div>
+{%- endmacro %}
+
+
+{# ── Tabs container ─────────────────────────────────────────────────────── #}
+{% macro tabs(tab_id, items) -%}
+<div class="tab-bar" role="tablist" id="{{ tab_id }}-bar">
+  {% for item in items %}
+    <button type="button" class="tab-btn {% if loop.first %}active{% endif %}"
+            role="tab"
+            data-tab="{{ item.id }}"
+            onclick="switchTab('{{ tab_id }}','{{ item.id }}')"
+            aria-selected="{{ 'true' if loop.first else 'false' }}">
+      {{ item.label }}
+    </button>
+  {% endfor %}
+</div>
+{% for item in items %}
+  <div class="tab-panel {% if loop.first %}active{% endif %}" role="tabpanel" id="{{ tab_id }}-{{ item.id }}">
+    {{ item.content | safe if item.content is defined else '' }}
+  </div>
+{% endfor %}
+{%- endmacro %}
+
+
+{# ── Setup wizard step indicator ────────────────────────────────────────── #}
+{% macro wizard_steps(steps, current=1) -%}
+<div class="wizard-steps">
+  {% for step in steps %}
+    <div class="wizard-step {% if loop.index == current %}active{% elif loop.index < current %}completed{% endif %}">
+      <span class="wizard-step-number">
+        {% if loop.index < current %}✓{% else %}{{ loop.index }}{% endif %}
+      </span>
+      <span>{{ step }}</span>
+    </div>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+
+{# ── Result panel ───────────────────────────────────────────────────────── #}
+{% macro result_panel(model_name, body, tokens_in=0, tokens_out=0, cost=0.0, sources=[]) -%}
+<div class="result-panel mb-4">
+  <div class="result-header">
+    <span class="status-pill status-pill-ok">{{ model_name }}</span>
+    {% if tokens_in %}
+      <span style="font-size:0.75rem;color:var(--color-text-muted);font-family:monospace;">
+        {{ tokens_in }} in · {{ tokens_out }} out · ${{ "%.4f"|format(cost) }}
+      </span>
+    {% endif %}
+  </div>
+  <div class="result-body">
+    {{ body | safe }}
+  </div>
+  {% if sources %}
+  <div style="padding:0.75rem 1rem;border-top:1px solid var(--color-border);">
+    <h4 class="card-title" style="font-size:0.8125rem;margin-bottom:0.5rem;">Sources consulted</h4>
+    <ul style="font-size:0.8125rem;list-style:none;padding:0;margin:0;">
+      {% for s in sources %}
+      <li style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.25rem 0;">
+        <code class="citekey">@{{ s.citekey }}</code>
+        <span style="color:var(--color-text-secondary);">
+          <em>"{{ s.title }}"</em>{% if s.year %} ({{ s.year }}){% endif %}
+          <span style="color:var(--color-text-muted);"> — {{ "%.2f"|format(s.similarity) }}</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}

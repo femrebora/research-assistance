@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import help_tooltip, card, empty_state, page_header with context %}
+{% block content %}
+
+{{ page_header("Library Search", "Search your Zotero library by title, author, abstract, collection, tag, or citekey.") }}
+
+{# ── Search form ───────────────────────────────────────────────────────── #}
+<div class="card card-padded mb-6">
+    <form method="GET" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <input type="text" name="q" value="{{ query }}" required
+               placeholder="Search your Zotero library…"
+               class="form-input" style="flex:1;min-width:200px;">
+        <select name="field" class="form-select" style="max-width:9rem;">
+            <option value="all" {% if field == 'all' %}selected{% endif %}>All fields</option>
+            <option value="title" {% if field == 'title' %}selected{% endif %}>Title</option>
+            <option value="author" {% if field == 'author' %}selected{% endif %}>Author</option>
+            <option value="abstract" {% if field == 'abstract' %}selected{% endif %}>Abstract</option>
+            <option value="collection" {% if field == 'collection' %}selected{% endif %}>Collection</option>
+            <option value="tag" {% if field == 'tag' %}selected{% endif %}>Tag</option>
+            <option value="citekey" {% if field == 'citekey' %}selected{% endif %}>Citekey</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+</div>
+
+{# ── Results ───────────────────────────────────────────────────────────── #}
+{% if results %}
+<div class="card" style="overflow:hidden;">
+    <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:600;font-size:0.8125rem;color:var(--color-text-primary);">{{ results|length }} result{% if results|length != 1 %}s{% endif %}</span>
+        <div style="display:flex;gap:0.375rem;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="exportResults('bibtex')">Export BibTeX</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="exportResults('json')">Export JSON</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="exportResults('citekeys')">Copy citekeys</button>
+        </div>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Year</th>
+                <th>Citekey</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td style="font-weight:500;color:var(--color-text-primary);">{{ r.title }}</td>
+                <td>{{ r.author or '—' }}</td>
+                <td>{{ r.year or '—' }}</td>
+                <td><code>{{ r.citekey or '—' }}</code></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif query %}
+<div class="state-box empty-state">
+    <div class="state-icon">🔍</div>
+    <div class="state-title">No results found</div>
+    <div class="state-body">Try a different search term or check your Zotero storage configuration.</div>
+</div>
+{% endif %}
+
+{# ── Browse PDFs ───────────────────────────────────────────────────────── #}
+{% if pdfs %}
+<div class="card card-padded mt-6">
+    <h3 class="card-title" style="margin-bottom:0.75rem;">PDF files in storage ({{ pdfs|length }})</h3>
+    <p class="form-helper">Located in {{ pdf_root }}</p>
+    <div style="max-height:16rem;overflow-y:auto;font-size:0.8125rem;">
+        {% for pdf in pdfs[:50] %}
+        <div style="padding:0.25rem 0;border-bottom:1px solid var(--color-border);color:var(--color-text-secondary);">
+            📄 {{ pdf }}
+        </div>
+        {% endfor %}
+        {% if pdfs|length > 50 %}
+        <p style="padding:0.5rem 0;color:var(--color-text-muted);">…and {{ pdfs|length - 50 }} more</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function exportResults(format) {
+    // Simple client-side export for displayed results
+    var rows = document.querySelectorAll('.data-table tbody tr');
+    var data = [];
+    rows.forEach(function(row) {
+        var cells = row.querySelectorAll('td');
+        data.push({
+            title: cells[0]?.textContent || '',
+            author: cells[1]?.textContent || '',
+            year: cells[2]?.textContent || '',
+            citekey: cells[3]?.textContent || ''
+        });
+    });
+
+    var text = '';
+    if (format === 'bibtex') {
+        data.forEach(function(r) {
+            text += '@article{' + r.citekey + ',\n';
+            text += '  title={' + r.title + '},\n';
+            text += '  author={' + r.author + '},\n';
+            text += '  year={' + r.year + '}\n';
+            text += '}\n\n';
+        });
+    } else if (format === 'json') {
+        text = JSON.stringify(data, null, 2);
+    } else if (format === 'citekeys') {
+        text = data.map(function(r) { return r.citekey; }).filter(Boolean).join('\n');
+    }
+
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Copied to clipboard!');
+        });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('Copied to clipboard!');
+    }
+}
+</script>
+{% endblock %}

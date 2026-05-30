@@ -1,10 +1,15 @@
-{% macro nav_link(href, label, active) -%}
-    {%- set is_active = href == active or (href != '/' and active.startswith(href)) -%}
+{% from "macros/ui.html" import help_tooltip, form_field, advanced_settings, status_card, empty_state, error_state, loading_state, page_header, card, alert, tabs, wizard_steps, result_panel with context %}
+{% macro nav_item(href, label, icon, active_route, desc='') -%}
+    {% set is_active = href == active_route or (href != '/' and active_route.startswith(href)) %}
     <a href="{{ href }}"
-       class="block px-2 py-1.5 rounded text-sm transition-colors
-              {% if is_active %}bg-indigo-50 text-indigo-700 font-medium{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
-        {{ label }}
+       class="sidebar-nav-item{% if is_active %} active{% endif %}"
+       {% if is_active %}aria-current="page"{% endif %}>
+        <span class="nav-icon">{{ icon }}</span>
+        <span class="sidebar-nav-label">{{ label }}</span>
     </a>
+    {% if desc and not is_active %}
+        <p class="sidebar-nav-desc">{{ desc }}</p>
+    {% endif %}
 {%- endmacro %}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -15,90 +20,181 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js"></script>
 </head>
-<body class="h-full bg-slate-50 text-slate-800 antialiased font-sans">
+<body class="h-full antialiased" style="background:var(--color-bg);color:var(--color-text-primary);font-family:system-ui,-apple-system,sans-serif;">
     <div class="flex h-full">
-        <!-- Sidebar -->
-        <nav class="w-64 shrink-0 border-r border-slate-200 bg-white overflow-y-auto">
-            <div class="p-5 border-b border-slate-200">
-                <a href="/" class="block">
-                    <h1 class="text-base font-semibold tracking-tight text-slate-900">Research Assistant</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Thesis toolkit</p>
+
+        {# ── Sidebar overlay (mobile) ──────────────────────────────────── #}
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        {# ── Sidebar ───────────────────────────────────────────────────── #}
+        <aside class="app-sidebar w-60 shrink-0 overflow-y-auto flex flex-col" role="navigation" aria-label="Main navigation">
+            {# Brand #}
+            <div class="px-4 py-4 border-b" style="border-color:var(--color-border);">
+                <a href="/" style="text-decoration:none;">
+                    <h1 class="text-base font-semibold tracking-tight sidebar-brand">Research Assistant</h1>
+                    <p class="text-xs mt-0.5" style="color:var(--color-text-muted);">Thesis toolkit</p>
                 </a>
             </div>
 
-            <div class="p-3 space-y-5">
+            {# Nav sections #}
+            <div class="flex-1 px-2.5 py-3 space-y-5 overflow-y-auto">
                 {% set active = active_route or '' %}
 
+                {# RESEARCH #}
                 <div>
-                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Research</p>
-                    <ul class="space-y-0.5">
-                        <li>{{ nav_link("/", "Dashboard", active) }}</li>
-                        <li>{{ nav_link("/ask", "Ask (RAG)", active) }}</li>
-                        <li>{{ nav_link("/compare", "Compare models", active) }}</li>
-                        <li>{{ nav_link("/sessions", "Sessions", active) }}</li>
-                        <li>{{ nav_link("/index", "Manage index", active) }}</li>
+                    <p class="sidebar-section-title">Research</p>
+                    <ul style="list-style:none;padding:0;margin:0;">
+                        <li>{{ nav_item("/", "Dashboard", "🏠", active) }}</li>
+                        <li>{{ nav_item("/ask-library", "Ask Library", "💬", active, "Questions with or without evidence from your papers") }}</li>
+                        <li>{{ nav_item("/library-search", "Library Search", "🔍", active, "Search your Zotero library by title, author, or citekey") }}</li>
+                        <li>{{ nav_item("/paper-discovery", "Paper Discovery", "🌐", active, "Find related papers from external academic sources") }}</li>
+                        <li>{{ nav_item("/sessions", "Sessions", "📋", active, "Saved questions, comparisons, and outputs") }}</li>
                     </ul>
                 </div>
 
-                {% for label, cat in [("Research tools", "research"), ("Writing", "writing"), ("Audit", "audit"), ("Pipeline", "pipeline"), ("Meta", "meta")] %}
-                    {% set tools_in_cat = tool_groups.get(cat, []) %}
-                    {% if tools_in_cat %}
-                    <div>
-                        <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">{{ label }}</p>
-                        <ul class="space-y-0.5">
-                        {% for tool in tools_in_cat %}
-                            <li>
-                                {{ nav_link("/tools/" + tool.name, tool.label, active) }}
-                                <p class="text-xs text-slate-500 mt-0.5 px-2">{{ (tool.description.split('.')[0]|truncate(100, True, '')) }}</p>
-                            </li>
-                        {% endfor %}
-                        </ul>
-                    </div>
+                {# WRITING #}
+                <div>
+                    <p class="sidebar-section-title">Writing</p>
+                    <ul style="list-style:none;padding:0;margin:0;">
+                        <li>{{ nav_item("/writing-studio", "Writing Studio", "✍️", active, "Outline, draft, critique, and revise with evidence") }}</li>
+                        <li>{{ nav_item("/outline-recommender", "Outline Builder", "📐", active, "Get a paper-type-aware outline recommendation") }}</li>
+                        <li>{{ nav_item("/peer-review", "Draft Review", "👥", active, "Multi-model AI peer review of your draft") }}</li>
+                        <li>{{ nav_item("/tools/coherence", "Chapter Review", "📖", active, "Check chapter flow, cohesion, and thesis support") }}</li>
+                    </ul>
+                </div>
+
+                {# PROJECT #}
+                <div>
+                    <p class="sidebar-section-title">Project</p>
+                    <ul style="list-style:none;padding:0;margin:0;">
+                        <li>{{ nav_item("/projects", "Project Setup", "📁", active, "Create and manage research projects") }}</li>
+                        <li>{{ nav_item("/workspace", "Workspace", "📝", active, "Three-pane editor with AI assist") }}</li>
+                        <li>{{ nav_item("/tools/disclose", "AI Disclosure", "📄", active, "Generate venue-specific AI-usage statements") }}</li>
+                    </ul>
+                </div>
+
+                {# SYSTEM #}
+                <div>
+                    <p class="sidebar-section-title">System</p>
+                    <ul style="list-style:none;padding:0;margin:0;">
+                        <li>{{ nav_item("/index-setup", "Index &amp; Zotero", "⚙️", active, "Connect Zotero, scan PDFs, build search index") }}</li>
+                        <li>{{ nav_item("/providers", "Providers", "🔌", active, "Check and test AI provider connections") }}</li>
+                        <li>{{ nav_item("/settings", "Settings", "🔧", active, "Edit paths, timeouts, and CLI config") }}</li>
+                    </ul>
+                </div>
+
+                {# ADVANCED (collapsed by default) #}
+                <div>
+                    <button type="button" class="advanced-toggle" style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.075em;padding:0 0.5rem;margin-bottom:0.375rem;"
+                            onclick="this.classList.toggle('open');document.getElementById('advanced-nav').classList.toggle('hidden')"
+                            aria-expanded="false">
+                        Advanced
+                    </button>
+                    <ul style="list-style:none;padding:0;margin:0;" id="advanced-nav" class="hidden">
+                        {% if paperforge_available %}
+                        <li>{{ nav_item("/paperforge", "PaperForge", "🏭", active) }}</li>
+                        {% endif %}
+                        <li>{{ nav_item("/orchestration", "Orchestration", "📊", active) }}</li>
+                        <li>{{ nav_item("/prompts", "Prompt Library", "📚", active) }}</li>
+                        <li>{{ nav_item("/defense", "Defense Simulator", "🛡️", active) }}</li>
+                    </ul>
+                </div>
+            </div>
+
+            {# Footer #}
+            <div class="px-4 py-3 border-t text-xs" style="border-color:var(--color-border);color:var(--color-text-muted);">
+                Research Assistant · v1.0
+            </div>
+        </aside>
+
+        {# ── Main content area ──────────────────────────────────────────── #}
+        <div class="flex-1 flex flex-col min-w-0">
+            {# Top bar #}
+            <header class="topbar flex items-center justify-between px-4 py-2 shrink-0" role="banner">
+                <div class="flex items-center gap-2">
+                    <button type="button" class="sidebar-toggle btn btn-ghost btn-sm"
+                            style="display:none;"
+                            onclick="toggleSidebar()"
+                            aria-label="Toggle sidebar">
+                        ☰
+                    </button>
+                    {% if active_project %}
+                    <span class="text-xs px-2 py-0.5 rounded-full" style="background:var(--color-primary-soft);color:var(--color-primary);">
+                        📁 {{ active_project.title }}
+                    </span>
                     {% endif %}
-                {% endfor %}
-
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Workspace</p>
-                    <ul class="space-y-0.5">
-                        <li>{{ nav_link("/workspace", "Open workspace", active) }}</li>
-                        <li>{{ nav_link("/projects", "Projects", active) }}</li>
-                        <li>{{ nav_link("/orchestration", "Orchestration", active) }}</li>
-                        <li>{{ nav_link("/prompts", "Prompt library", active) }}</li>
-                        <li>{{ nav_link("/peer-review", "AI peer review", active) }}</li>
-                        <li>{{ nav_link("/defense", "Defense simulator", active) }}</li>
-                    </ul>
                 </div>
 
-                {% if paperforge_available %}
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Generate</p>
-                    <ul class="space-y-0.5">
-                        <li>{{ nav_link("/paperforge", "PaperForge", active) }}</li>
-                    </ul>
+                <div class="flex items-center gap-3">
+                    {% if active_project %}
+                    <a href="/projects/{{ active_project.slug }}" class="text-xs" style="color:var(--color-text-muted);text-decoration:none;">
+                        Project settings
+                    </a>
+                    {% endif %}
+
+                    {# Theme toggle #}
+                    <div class="theme-toggle" role="radiogroup" aria-label="Theme">
+                        <button type="button" class="theme-toggle-btn" data-theme-value="light"
+                                onclick="setTheme('light')" aria-label="Light theme" role="radio" aria-checked="false"
+                                title="Light">☀️</button>
+                        <button type="button" class="theme-toggle-btn" data-theme-value="dark"
+                                onclick="setTheme('dark')" aria-label="Dark theme" role="radio" aria-checked="false"
+                                title="Dark">🌙</button>
+                        <button type="button" class="theme-toggle-btn" data-theme-value="system"
+                                onclick="setTheme('system')" aria-label="System theme" role="radio" aria-checked="false"
+                                title="System">💻</button>
+                    </div>
                 </div>
-                {% endif %}
+            </header>
 
-                <div>
-                    <p class="text-[10px] uppercase tracking-wider text-slate-400 px-2 mb-2">Config</p>
-                    <ul class="space-y-0.5">
-                        <li>{{ nav_link("/providers", "Providers", active) }}</li>
-                        <li>{{ nav_link("/settings", "Settings", active) }}</li>
-                    </ul>
+            {# Main scrollable content #}
+            <main class="flex-1 overflow-y-auto">
+                <div class="max-w-6xl mx-auto px-4 md:px-8 py-6">
+                    {% block content %}{% endblock %}
                 </div>
-            </div>
-
-            <div class="p-4 border-t border-slate-200 mt-4">
-                <p class="text-[11px] text-slate-400">Research Assistant · v1.0</p>
-            </div>
-        </nav>
-
-        <!-- Main content -->
-        <main class="flex-1 overflow-y-auto">
-            <div class="max-w-6xl mx-auto px-8 py-8">
-                {% block content %}{% endblock %}
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
+
+    {# ── Shared JS utilities ────────────────────────────────────────────── #}
+    <script>
+    // Advanced toggle for sidebar section
+    (function() {
+        var btn = document.querySelector('.advanced-toggle');
+        if (btn) {
+            var panel = document.getElementById('advanced-nav');
+            // If any advanced nav item is active, expand by default
+            if (panel && panel.querySelector('.sidebar-nav-item.active')) {
+                btn.classList.add('open');
+                panel.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+            }
+        }
+    })();
+
+    // Keyboard support for theme toggle
+    document.querySelector('.theme-toggle')?.addEventListener('keydown', function(e) {
+        var btns = Array.from(this.querySelectorAll('.theme-toggle-btn'));
+        var idx = btns.indexOf(document.activeElement);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            var next = e.key === 'ArrowRight' ? (idx + 1) % btns.length : (idx - 1 + btns.length) % btns.length;
+            btns[next].focus();
+            btns[next].click();
+        }
+    });
+
+    // Close sidebar on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var sidebar = document.querySelector('.app-sidebar');
+            if (sidebar && sidebar.classList.contains('open')) {
+                toggleSidebar();
+            }
+        }
+    });
+    </script>
 </body>
 </html>

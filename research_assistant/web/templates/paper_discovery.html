@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import help_tooltip, card, page_header, alert with context %}
+{% block content %}
+
+{{ page_header("Paper Discovery", "Find related papers from external academic sources and decide what to add to Zotero.") }}
+
+<div class="alert alert-warning mb-5">
+    <strong>External sources.</strong> Discovery searches OpenAlex, Semantic Scholar, and Elicit. These are external services — results are not automatically added to your Zotero library unless the backend supports it.
+</div>
+
+{# ── Tabs for discovery sources ─────────────────────────────────────────── #}
+<div class="tab-bar" role="tablist" id="discovery-bar">
+    <button type="button" class="tab-btn active" data-tab="openalex" onclick="switchTab('discovery','openalex')" role="tab" aria-selected="true">
+        🔬 OpenAlex
+    </button>
+    <button type="button" class="tab-btn" data-tab="semantic" onclick="switchTab('discovery','semantic')" role="tab" aria-selected="false">
+        📖 Semantic Scholar
+    </button>
+    <button type="button" class="tab-btn" data-tab="elicit" onclick="switchTab('discovery','elicit')" role="tab" aria-selected="false">
+        🧠 Elicit
+    </button>
+</div>
+
+{# ── OpenAlex ───────────────────────────────────────────────────────────── #}
+<div class="tab-panel active" role="tabpanel" id="discovery-openalex">
+    <div class="card card-padded mb-4">
+        <form hx-post="/tools/discover/run" hx-target="#discover-result" hx-indicator="#discover-indicator" style="display:flex;flex-direction:column;gap:0.75rem;">
+            <input type="hidden" name="source" value="openalex">
+            <div>
+                <label class="form-label" for="oa-query">Search query
+                    {{ help_tooltip("Search OpenAlex for works, authors, concepts, and institutions. Use keywords, author names, or DOIs.") }}
+                </label>
+                <input type="text" id="oa-query" name="query" required
+                       placeholder="e.g. mitochondrial DNA NUMT filtering"
+                       class="form-input">
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+                <div>
+                    <label class="form-label" for="oa-limit">Max results</label>
+                    <input type="number" id="oa-limit" name="limit" value="10" min="1" max="50"
+                           class="form-input" style="max-width:6rem;">
+                </div>
+                <button type="submit" class="btn btn-primary">Search OpenAlex</button>
+                <span id="discover-indicator" class="htmx-indicator" style="display:inline-flex;align-items:center;gap:0.375rem;font-size:0.8125rem;color:var(--color-text-muted);">
+                    <span class="spinner"></span> Searching…
+                </span>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Semantic Scholar ───────────────────────────────────────────────────── #}
+<div class="tab-panel" role="tabpanel" id="discovery-semantic">
+    <div class="card card-padded mb-4">
+        <form hx-post="/tools/discover/run" hx-target="#discover-result" hx-indicator="#discover-indicator" style="display:flex;flex-direction:column;gap:0.75rem;">
+            <input type="hidden" name="source" value="semantic_scholar">
+            <div>
+                <label class="form-label" for="ss-query">Search query
+                    {{ help_tooltip("Semantic Scholar provides AI-powered search with citation context and influence scores. Good for finding highly cited related work.") }}
+                </label>
+                <input type="text" id="ss-query" name="query" required
+                       placeholder="e.g. deep learning protein structure prediction"
+                       class="form-input">
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+                <div>
+                    <label class="form-label" for="ss-limit">Max results</label>
+                    <input type="number" id="ss-limit" name="limit" value="10" min="1" max="50"
+                           class="form-input" style="max-width:6rem;">
+                </div>
+                <button type="submit" class="btn btn-primary">Search Semantic Scholar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Elicit ─────────────────────────────────────────────────────────────── #}
+<div class="tab-panel" role="tabpanel" id="discovery-elicit">
+    <div class="card card-padded mb-4">
+        <form hx-post="/tools/discover/run" hx-target="#discover-result" hx-indicator="#discover-indicator" style="display:flex;flex-direction:column;gap:0.75rem;">
+            <input type="hidden" name="source" value="elicit">
+            <div>
+                <label class="form-label" for="el-query">Research question
+                    {{ help_tooltip("Elicit is optimized for research questions. It finds papers that address specific empirical questions and extracts key findings.") }}
+                </label>
+                <input type="text" id="el-query" name="query" required
+                       placeholder="e.g. What is the effect of sleep on memory consolidation?"
+                       class="form-input">
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+                <div>
+                    <label class="form-label" for="el-limit">Max results</label>
+                    <input type="number" id="el-limit" name="limit" value="10" min="1" max="50"
+                           class="form-input" style="max-width:6rem;">
+                </div>
+                <button type="submit" class="btn btn-primary">Search Elicit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="discover-result"></div>
+
+{% endblock %}

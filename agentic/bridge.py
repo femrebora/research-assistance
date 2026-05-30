@@ -21,9 +21,10 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 TIMEOUT = 600  # seconds per agent call
 
-# DeepSeek API config — read at call time, not module level
+# DeepSeek API config
 DEEPSEEK_BASE = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"  # v3-equivalent, fast and cheap
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 
 # Gemini API config (optional fallback — use CLI for now)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -132,7 +133,7 @@ def _call_claude(prompt: str, model: str) -> dict:
 
 def _call_deepseek(prompt: str, system: str | None = None) -> dict:
     """Call DeepSeek via direct OpenAI-compatible API (bypasses CLI coding context)."""
-    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
+    api_key = DEEPSEEK_API_KEY or os.getenv("ANTHROPIC_AUTH_TOKEN", "")
     if not api_key:
         return {"text": "(error: no DeepSeek API key — set ANTHROPIC_AUTH_TOKEN)",
                 "model": "deepseek", "input_tokens": None, "output_tokens": None, "cost": None}

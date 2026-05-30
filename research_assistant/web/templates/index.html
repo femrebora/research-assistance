@@ -1,238 +1,189 @@
 {% extends "base.html" %}
+{% from "macros/ui.html" import status_card, card, alert, empty_state with context %}
 {% block content %}
+
 <div class="flex items-center justify-between mb-6">
     <div>
-        <h2 class="text-2xl font-semibold text-slate-900">Dashboard</h2>
-        <p class="text-sm text-slate-500 mt-1">Master's & PhD thesis research toolkit</p>
+        <h2 class="page-title">Dashboard</h2>
+        <p class="page-subtitle">Your local workspace for literature review, source‑grounded answers, thesis writing, and transparent AI use.</p>
     </div>
-    <a href="/index"
-       class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition">
-        Manage index
-    </a>
+    <a href="/index-setup" class="btn btn-primary">Manage index</a>
 </div>
 
-<!-- Active project banner -->
+{# ── Active project banner ─────────────────────────────────────────────── #}
 {% if active_project %}
-<div class="bg-white rounded-lg border border-slate-200 p-4 mb-6 flex items-start justify-between gap-4">
-    <div class="min-w-0">
-        <p class="text-[10px] uppercase tracking-wider text-indigo-500 mb-0.5">Active project</p>
-        <a href="/projects/{{ active_project.slug }}" class="font-semibold text-slate-900 hover:text-indigo-600">{{ active_project.title }}</a>
-        {% if active_project.research_question %}
-        <p class="text-sm text-slate-500 mt-0.5 truncate">{{ active_project.research_question }}</p>
-        {% endif %}
+<div class="card card-padded mb-6">
+    <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+            <span class="section-label" style="color:var(--color-primary);">Active project</span>
+            <a href="/projects/{{ active_project.slug }}" class="card-title" style="font-size:0.9375rem;display:block;margin-top:0.125rem;">
+                {{ active_project.title }}
+            </a>
+            {% if active_project.research_question %}
+            <p class="form-helper truncate" style="margin-top:0.125rem;">{{ active_project.research_question }}</p>
+            {% endif %}
+        </div>
+        <a href="/projects" class="btn btn-secondary btn-sm" style="flex-shrink:0;">Switch project</a>
     </div>
-    <a href="/projects" class="shrink-0 text-sm text-indigo-600 hover:underline">Switch →</a>
 </div>
 {% else %}
-<div class="bg-white rounded-lg border border-slate-200 p-4 mb-6 flex items-center justify-between gap-4">
-    <p class="text-sm text-slate-600">No active project yet — set one to tailor tools to your research question.</p>
-    <a href="/projects/new" class="shrink-0 text-sm font-medium text-indigo-600 hover:underline">Create project →</a>
+<div class="card card-padded mb-6">
+    <div class="flex items-center justify-between gap-4">
+        <p style="color:var(--color-text-secondary);font-size:0.875rem;">
+            No active project yet — set one to tailor tools to your research question.
+        </p>
+        <a href="/projects/new" class="btn btn-primary btn-sm" style="flex-shrink:0;">Create project</a>
+    </div>
 </div>
 {% endif %}
 
-<!-- Status cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-lg border border-slate-200 p-4">
-        <p class="text-xs uppercase tracking-wider text-slate-400">Documents</p>
-        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ index.documents if index.exists else "—" }}</p>
-    </div>
-    <div class="bg-white rounded-lg border border-slate-200 p-4">
-        <p class="text-xs uppercase tracking-wider text-slate-400">Chunks</p>
-        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ index.chunks if index.exists else "—" }}</p>
-    </div>
-    <div class="bg-white rounded-lg border border-slate-200 p-4">
-        <p class="text-xs uppercase tracking-wider text-slate-400">Embeddings</p>
-        <p class="text-sm font-medium text-slate-700 mt-2 truncate">
+{# ── Status cards ──────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stat-card-grid">
+    <a href="/index-setup" class="stat-card card-hover" style="text-decoration:none;">
+        <div class="stat-card-label">📄 Documents</div>
+        <div class="stat-card-value">{{ index.documents if index.exists else "—" }}</div>
+        <div class="stat-card-sub">indexed</div>
+    </a>
+    <a href="/index-setup" class="stat-card card-hover" style="text-decoration:none;">
+        <div class="stat-card-label">🧩 Chunks</div>
+        <div class="stat-card-value">{{ index.chunks if index.exists else "—" }}</div>
+        <div class="stat-card-sub">searchable</div>
+    </a>
+    <div class="stat-card">
+        <div class="stat-card-label">🧠 Embedding model</div>
+        <div class="stat-card-sub" style="font-weight:600;color:var(--color-text-primary);">
             {{ index.embedding_model.split('/')[-1] if index.exists and index.embedding_model else "—" }}
-        </p>
+        </div>
     </div>
-    <div class="bg-white rounded-lg border border-slate-200 p-4">
-        <p class="text-xs uppercase tracking-wider text-slate-400">Last indexed</p>
-        <p class="text-sm font-medium text-slate-700 mt-2">
+    <div class="stat-card">
+        <div class="stat-card-label">🕐 Last indexed</div>
+        <div class="stat-card-sub" style="font-weight:600;color:var(--color-text-primary);">
             {{ index.last_indexed[:10] if index.exists and index.last_indexed and index.last_indexed != 'never' else "never" }}
-        </p>
+        </div>
     </div>
 </div>
 
-<!-- Provider health -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <a href="/providers" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
-        <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if api_ok else 'bg-slate-300' }}"></span>
-            <p class="text-xs uppercase tracking-wider text-slate-400">API providers</p>
+{# ── Provider health ───────────────────────────────────────────────────── #}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+    <a href="/providers" class="stat-card card-hover" style="text-decoration:none;">
+        <div class="stat-card-label">
+            <span class="status-dot {{ 'status-dot-ok' if api_ok else 'status-dot-muted' }}"></span>
+            API providers
         </div>
-        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ api_ok }}<span class="text-slate-400 text-base font-normal"> / {{ api_providers|length }}</span></p>
+        <div class="stat-card-value" style="font-size:1.25rem;">{{ api_ok }}<span style="font-size:0.75rem;color:var(--color-text-muted);font-weight:400;"> / {{ api_providers|length }} ready</span></div>
     </a>
-    <a href="/providers" class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
-        <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if cli_ok >= 4 else 'bg-amber-400' if cli_ok else 'bg-slate-300' }}"></span>
-            <p class="text-xs uppercase tracking-wider text-slate-400">CLI providers</p>
+    <a href="/providers" class="stat-card card-hover" style="text-decoration:none;">
+        <div class="stat-card-label">
+            <span class="status-dot {{ 'status-dot-ok' if cli_ok >= 4 else 'status-dot-warn' if cli_ok else 'status-dot-muted' }}"></span>
+            CLI providers
         </div>
-        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ cli_ok }}<span class="text-slate-400 text-base font-normal"> / {{ cli_providers|length }}</span></p>
+        <div class="stat-card-value" style="font-size:1.25rem;">{{ cli_ok }}<span style="font-size:0.75rem;color:var(--color-text-muted);font-weight:400;"> / {{ cli_providers|length }} found</span></div>
     </a>
-    <a href="{{ '/paperforge' if paperforge_available else '/settings' }}"
-       class="bg-white rounded-lg border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
-        <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if paperforge_available else 'bg-slate-300' }}"></span>
-            <p class="text-xs uppercase tracking-wider text-slate-400">{{ 'PaperForge' if paperforge_available else 'Config' }}</p>
+    <div class="stat-card">
+        <div class="stat-card-label">
+            <span class="status-dot {{ 'status-dot-ok' if paperforge_available else 'status-dot-muted' }}"></span>
+            PaperForge
         </div>
-        <p class="text-sm font-medium text-slate-700 mt-2">{{ 'Ready' if paperforge_available else 'Manage settings →' }}</p>
-    </a>
+        <div class="stat-card-sub" style="font-weight:600;color:var(--color-text-primary);">
+            {{ 'Available' if paperforge_available else 'Not loaded' }}
+        </div>
+    </div>
 </div>
 
+{# ── No index: guided onboarding card ───────────────────────────────────── #}
 {% if not index.exists %}
-<div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-4 py-3 mb-6 text-sm">
-    No index found. <a href="/index" class="underline font-medium">Index your Zotero PDFs</a> to enable RAG features.
+<div class="onboarding-card mb-6">
+    <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <div class="flex-1">
+            <h3 class="card-title" style="font-size:1rem;">Start with your Zotero library</h3>
+            <p style="color:var(--color-text-secondary);font-size:0.8125rem;margin-top:0.375rem;line-height:1.5;">
+                Connect your Zotero storage folder, scan your PDFs, and build a searchable index before using citation‑aware answers.
+            </p>
+        </div>
+        <div class="flex items-center gap-2" style="flex-shrink:0;">
+            <a href="/index-setup" class="btn btn-primary">Set up Zotero and index</a>
+            <a href="/ask-library?tab=single" class="btn btn-secondary">Ask without library context</a>
+        </div>
+    </div>
+</div>
+{% elif index.error is defined and index.error %}
+<div class="alert alert-warning mb-6">
+    The index may have an issue. <a href="/index-setup" style="font-weight:500;">Check index settings</a>.
 </div>
 {% endif %}
 
-<!-- Start writing: guided entry into the writing workflow -->
+{# ── Recommended workflow ──────────────────────────────────────────────── #}
+<div class="card card-padded mb-6">
+    <h3 class="card-title">Recommended workflow</h3>
+    <ol style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.5rem 1rem;margin-top:0.75rem;font-size:0.8125rem;color:var(--color-text-secondary);list-style-position:inside;">
+        <li style="padding:0.25rem 0;">Create or select a project</li>
+        <li style="padding:0.25rem 0;">Configure Zotero and thesis workspace</li>
+        <li style="padding:0.25rem 0;">Build the index from your PDFs</li>
+        <li style="padding:0.25rem 0;">Ask questions against your library</li>
+        <li style="padding:0.25rem 0;">Save useful answers as evidence notes</li>
+        <li style="padding:0.25rem 0;">Use Writing Studio to outline, draft, critique, and refine</li>
+        <li style="padding:0.25rem 0;">Export AI disclosure logs when needed</li>
+    </ol>
+</div>
+
+{# ── Quick ask ─────────────────────────────────────────────────────────── #}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.75rem;">Quick ask</h3>
+    <form action="/ask-library" method="POST" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <input type="hidden" name="action" value="rag">
+        <input type="text" name="question" required
+               placeholder="Ask a question against your indexed papers…"
+               class="form-input" style="flex:1;min-width:200px;">
+        <select name="model" class="form-select" style="max-width:10rem;">
+            {% for alias in models %}
+            <option value="{{ alias }}" {% if alias == 'claude' %}selected{% endif %}>{{ alias }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Ask</button>
+    </form>
+</div>
+
+{# ── Start writing card ────────────────────────────────────────────────── #}
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <a href="/outline-recommender"
-       class="md:col-span-2 group bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-lg p-5 hover:shadow-md transition block">
-        <p class="text-[10px] uppercase tracking-wider text-indigo-100 mb-1">Start writing</p>
-        <h3 class="text-lg font-semibold">Recommend a paper outline</h3>
-        <p class="text-sm text-indigo-100 mt-1">
-            Turn a topic into a full, paper-type-aware structure — section purposes,
-            length targets, organizational variants, and evidence-coverage gaps.
+    <a href="/outline-recommender" class="md:col-span-2 card card-padded card-hover" style="background:linear-gradient(135deg,var(--color-primary-soft),var(--color-surface));text-decoration:none;">
+        <span class="section-label" style="color:var(--color-primary);">Start writing</span>
+        <h3 class="card-title" style="font-size:1.0625rem;margin-top:0.125rem;">Recommend a paper outline</h3>
+        <p style="color:var(--color-text-secondary);font-size:0.8125rem;margin-top:0.25rem;line-height:1.5;">
+            Turn a topic into a full, paper‑type‑aware structure — section purposes, length targets, organizational variants, and evidence‑coverage gaps.
         </p>
-        <span class="inline-flex items-center gap-1 text-sm font-medium mt-3 group-hover:gap-2 transition-all">
-            Open recommender →
-        </span>
+        <span class="btn btn-primary btn-sm" style="margin-top:0.75rem;">Open recommender →</span>
     </a>
-    <div class="bg-white rounded-lg border border-slate-200 p-5">
-        <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Then refine</p>
-        <ul class="space-y-1.5 text-sm">
-            <li><a href="/tools/outline" class="text-indigo-600 hover:underline">Section outline</a> <span class="text-slate-400">— flesh out one section</span></li>
-            <li><a href="/tools/ideas" class="text-indigo-600 hover:underline">Paragraph angles</a> <span class="text-slate-400">— brainstorm a paragraph</span></li>
-            <li><a href="/tools/critique" class="text-indigo-600 hover:underline">Draft critique</a> <span class="text-slate-400">— review a draft</span></li>
-            <li><a href="/peer-review" class="text-indigo-600 hover:underline">AI peer review</a> <span class="text-slate-400">— multi-model review</span></li>
+    <div class="card card-padded">
+        <span class="section-label">Then refine</span>
+        <ul style="list-style:none;padding:0;margin-top:0.5rem;font-size:0.8125rem;line-height:1.8;">
+            <li><a href="/writing-studio?task=outline" style="color:var(--color-primary);text-decoration:none;">Section outline</a> <span style="color:var(--color-text-muted);">— flesh out one section</span></li>
+            <li><a href="/writing-studio?task=angles" style="color:var(--color-primary);text-decoration:none;">Paragraph angles</a> <span style="color:var(--color-text-muted);">— brainstorm a paragraph</span></li>
+            <li><a href="/writing-studio?task=critique" style="color:var(--color-primary);text-decoration:none;">Draft critique</a> <span style="color:var(--color-text-muted);">— review a draft</span></li>
+            <li><a href="/peer-review" style="color:var(--color-primary);text-decoration:none;">AI peer review</a> <span style="color:var(--color-text-muted);">— multi-model review</span></li>
         </ul>
     </div>
 </div>
 
-<!-- Quick ask -->
-<div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">
-    <h3 class="font-semibold text-slate-900 mb-3">Quick ask</h3>
-    <form action="/ask" method="POST" class="space-y-3">
-        <input type="text" name="question" required
-               placeholder="Ask a question against your indexed papers…"
-               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
-        <div class="flex items-center gap-2">
-            <select name="model" class="px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
-                {% for alias in models %}
-                <option value="{{ alias }}" {% if alias == 'claude' %}selected{% endif %}>{{ alias }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit"
-                    class="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition">
-                Ask
-            </button>
-        </div>
-    </form>
-</div>
-
-{% if tab == "index" %}
-<div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">
-    <h3 class="font-semibold text-slate-900 mb-3">Index management</h3>
-    <div id="index-status" class="mb-3 text-sm">
-        {% if index_state and index_state.running %}
-            <p class="text-indigo-700">Indexing in progress: {{ index_state.status }}</p>
-            <div class="w-full bg-slate-100 rounded h-2 mt-2"><div class="bg-indigo-500 h-2 rounded" id="progress-bar-fill" style="width: 0%"></div></div>
-        {% elif index_state and index_state.stats %}
-            <div class="text-emerald-700">
-                <p>Last index result:</p>
-                <ul class="list-disc list-inside text-slate-700">
-                    <li>{{ index_state.stats.indexed }} documents indexed</li>
-                    <li>{{ index_state.stats.total_chunks }} chunks created</li>
-                    <li>{{ index_state.stats.skipped }} skipped · {{ index_state.stats.failed }} failed</li>
-                </ul>
-            </div>
-        {% endif %}
-    </div>
-
-    <form action="/index/start" method="POST" onsubmit="startIndexing(event)" class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-            <input type="text" name="collection" placeholder="Collection (optional)"
-                   class="px-3 py-2 border border-slate-300 rounded-md text-sm">
-            <input type="number" name="limit" placeholder="Limit (optional)" min="1"
-                   class="px-3 py-2 border border-slate-300 rounded-md text-sm">
-        </div>
-        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" name="force" class="rounded border-slate-300"> Force re-index
-        </label>
-        <div>
-            <button type="submit" id="index-btn"
-                    class="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50">
-                Start indexing
-            </button>
-        </div>
-    </form>
-</div>
-
-<script>
-async function startIndexing(e) {
-    e.preventDefault();
-    const btn = document.getElementById("index-btn");
-    btn.disabled = true;
-    btn.textContent = "Starting…";
-    try {
-        await fetch("/index/start", { method: "POST", body: new FormData(e.target) });
-        pollIndexStatus();
-    } catch(err) {
-        btn.disabled = false;
-        btn.textContent = "Start indexing";
-    }
-}
-async function pollIndexStatus() {
-    const btn = document.getElementById("index-btn");
-    try {
-        while (true) {
-            const resp = await fetch("/index/status");
-            const data = await resp.json();
-            if (data.status === "complete") {
-                btn.disabled = false;
-                btn.textContent = "Start indexing";
-                document.getElementById("index-status").innerHTML =
-                    "<p class='text-emerald-700'>Indexing complete — " +
-                    data.stats.indexed + " documents, " + data.stats.total_chunks + " chunks.</p>" +
-                    "<p class='mt-1'><a class='text-indigo-600 underline' href='/'>Refresh dashboard</a></p>";
-                return;
-            }
-            if (data.status === "error") {
-                btn.disabled = false;
-                btn.textContent = "Start indexing";
-                document.getElementById("index-status").innerHTML =
-                    "<p class='text-rose-700'>Error: " + data.error + "</p>";
-                return;
-            }
-            await new Promise(r => setTimeout(r, 2000));
-        }
-    } catch(err) {
-        btn.disabled = false;
-        btn.textContent = "Start indexing";
-    }
-}
-</script>
-{% endif %}
-
-<!-- Recent sessions -->
-<div class="bg-white rounded-lg border border-slate-200 p-5">
-    <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-slate-900">Recent sessions</h3>
-        <a href="/sessions" class="text-sm text-indigo-600 hover:underline">View all →</a>
+{# ── Recent sessions ───────────────────────────────────────────────────── #}
+<div class="card card-padded">
+    <div class="flex items-center justify-between" style="margin-bottom:0.75rem;">
+        <h3 class="card-title">Recent sessions</h3>
+        <a href="/sessions" style="font-size:0.8125rem;color:var(--color-primary);text-decoration:none;">View all →</a>
     </div>
     {% if sessions %}
-    <ul class="divide-y divide-slate-100">
+    <div style="font-size:0.8125rem;">
         {% for s in sessions %}
-        <li class="py-2 flex items-center justify-between text-sm">
-            <a href="/sessions/{{ s.name }}" class="font-medium text-slate-900 hover:text-indigo-600 truncate">{{ s.name }}</a>
-            <span class="text-slate-500 ml-3 truncate max-w-md">{{ s.last_question[:80] }}{% if s.last_question|length > 80 %}…{% endif %}</span>
-        </li>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--color-border);">
+            <a href="/sessions/{{ s.name }}" style="font-weight:500;color:var(--color-text-primary);text-decoration:none;" class="truncate">{{ s.name }}</a>
+            <span style="color:var(--color-text-muted);flex-shrink:0;margin-left:0.75rem;" class="truncate" class="max-w-md">{{ s.last_question[:80] }}{% if s.last_question|length > 80 %}…{% endif %}</span>
+        </div>
         {% endfor %}
-    </ul>
+    </div>
     {% else %}
-    <p class="text-sm text-slate-500">No sessions yet. Ask a question and save it.</p>
+    <div class="state-box empty-state" style="padding:1.5rem;">
+        <div class="state-body" style="margin:0;">No sessions yet. Ask a question and save it.</div>
+    </div>
     {% endif %}
 </div>
+
 {% endblock %}

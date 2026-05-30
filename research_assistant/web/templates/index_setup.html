@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import help_tooltip, wizard_steps, card, alert, empty_state, error_state, page_header with context %}
+{% block content %}
+
+{{ page_header("Index & Zotero", "Connect Zotero, choose your thesis workspace, scan PDFs, and build the local search index.") }}
+
+{# ── Setup wizard steps ────────────────────────────────────────────────── #}
+{% set step = request.args.get('step', '1')|int %}
+{% set steps = ["Choose workspace", "Zotero storage", "Zotero credentials", "Scan PDFs", "Build index", "Test RAG"] %}
+{{ wizard_steps(steps, step) }}
+
+{# ── Step 1: Choose thesis workspace ───────────────────────────────────── #}
+{% if step == 1 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 1: Choose thesis workspace folder</h3>
+    <p class="form-helper">This is where drafts, evidence notes, sessions, logs, and exported files are saved.</p>
+
+    <form method="POST" action="/settings" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <div>
+            <label class="form-label" for="thesis-root">Thesis workspace folder
+                {{ help_tooltip("Your project workspace folder. Outputs, drafts, evidence notes, logs, and saved files are stored here.") }}
+            </label>
+            <input type="text" id="thesis-root" name="THESIS_ROOT"
+                   value="{{ thesis_root }}" placeholder="/home/your_username/thesis"
+                   class="form-input" style="font-family:monospace;">
+            <p class="form-helper">Example: /home/your_username/thesis</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            {% if thesis_exists %}
+            <span class="status-pill status-pill-ok">✓ Path exists</span>
+            {% elif thesis_root %}
+            <span class="status-pill status-pill-warn">⚠ Path not found</span>
+            {% else %}
+            <span class="status-pill status-pill-muted">Not configured</span>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <button type="submit" class="btn btn-primary">Save and continue</button>
+            <a href="?step=2" class="btn btn-secondary">Skip for now</a>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{# ── Step 2: Zotero storage ────────────────────────────────────────────── #}
+{% if step == 2 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 2: Choose Zotero PDF storage folder</h3>
+    <p class="form-helper">This folder contains your Zotero attachment files — usually many short random subfolders with PDFs.</p>
+
+    <form method="POST" action="/settings" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <div>
+            <label class="form-label" for="zotero-storage">Zotero PDF storage folder
+                {{ help_tooltip("The folder that contains your PDFs. For Zotero, it is usually the Zotero storage folder. On Linux it is often ~/Zotero/storage, on macOS ~/Zotero/storage, on Windows C:\\Users\\your_username\\Zotero\\storage.") }}
+            </label>
+            <input type="text" id="zotero-storage" name="ZOTERO_STORAGE"
+                   value="{{ zotero_storage }}" placeholder="/home/your_username/Zotero/storage"
+                   class="form-input" style="font-family:monospace;">
+            <p class="form-helper">
+                Linux: /home/your_username/Zotero/storage &nbsp;|&nbsp;
+                macOS: /Users/your_username/Zotero/storage &nbsp;|&nbsp;
+                Windows: C:\Users\your_username\Zotero\storage
+            </p>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            {% if storage_exists %}
+            <span class="status-pill status-pill-ok">✓ Path exists ({{ pdf_count }} PDFs found)</span>
+            {% elif zotero_storage %}
+            <span class="status-pill status-pill-danger">✗ Path not found</span>
+            {% else %}
+            <span class="status-pill status-pill-muted">Not configured</span>
+            {% endif %}
+            <button type="button" class="btn btn-secondary btn-sm" onclick="autoDetectZotero()">Auto-detect Zotero path</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <button type="submit" class="btn btn-primary">Save and continue</button>
+            <a href="?step=3" class="btn btn-secondary">Skip for now</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function autoDetectZotero() {
+    var paths = [
+        '/home/' + (window.location.pathname.split('/')[2] || '') + '/Zotero/storage',
+        '/Users/' + (window.location.pathname.split('/')[2] || '') + '/Zotero/storage',
+        '/Users/' + (window.location.pathname.split('/')[2] || '') + '/Library/Application Support/Zotero/Profiles'
+    ];
+    var field = document.getElementById('zotero-storage');
+    // Try the first likely path
+    field.value = paths[0];
+    field.focus();
+}
+</script>
+{% endif %}
+
+{# ── Step 3: Zotero credentials ────────────────────────────────────────── #}
+{% if step == 3 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 3: Add Zotero metadata credentials</h3>
+    <p class="form-helper">These are used to read item metadata (titles, authors, collections) through the Zotero API.</p>
+
+    <form method="POST" action="/settings" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <div>
+            <label class="form-label" for="zotero-user">Zotero user ID
+                {{ help_tooltip("Used to read Zotero item metadata through the Zotero API. This is not your email address. Find it at https://www.zotero.org/settings/keys") }}
+            </label>
+            <input type="text" id="zotero-user" name="ZOTERO_USER_ID"
+                   value="{{ zotero_user_id }}" placeholder="1234567"
+                   class="form-input" style="max-width:16rem;">
+        </div>
+        <div>
+            <label class="form-label" for="zotero-key">Zotero API key
+                {{ help_tooltip("Used to access your Zotero library metadata. Stored in the local .env file and never printed in logs.") }}
+            </label>
+            <input type="password" id="zotero-key" name="ZOTERO_API_KEY"
+                   placeholder="{% if zotero_api_key_set %}•••••••• (already set){% endif %}"
+                   class="form-input" style="max-width:24rem;">
+            {% if zotero_api_key_set %}
+            <p class="form-helper" style="color:var(--color-success);">✓ API key is configured</p>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <button type="submit" class="btn btn-primary">Save credentials</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="testZoteroAPI()">Test Zotero API</button>
+            <a href="?step=4" class="btn btn-secondary">Skip for now</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function testZoteroAPI() {
+    alert('Zotero API test will be performed server-side. Check results below.');
+    // In the future, this will be an HTMX endpoint
+}
+</script>
+{% endif %}
+
+{# ── Step 4: Scan PDFs ─────────────────────────────────────────────────── #}
+{% if step == 4 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 4: Scan PDFs</h3>
+    <p class="form-helper">The scanner walks your Zotero storage folder and finds all PDF files. This step verifies that your storage path is correct.</p>
+
+    {% if not storage_exists %}
+    <div class="alert alert-warning mb-4" style="margin-top:1rem;">
+        <strong>Storage path not found.</strong> Go back to Step 2 and set a valid Zotero storage folder first.
+    </div>
+    <a href="?step=2" class="btn btn-secondary">← Back to storage setup</a>
+    {% else %}
+    <div style="margin-top:1rem;">
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+            <span class="status-pill status-pill-ok">✓ {{ pdf_count }} PDFs found in {{ zotero_storage }}</span>
+        </div>
+        {% if pdf_count == 0 %}
+        <div class="alert alert-warning">
+            No PDFs found in the storage folder. Check that the path is correct and contains PDF files.
+        </div>
+        {% else %}
+        <p style="color:var(--color-text-secondary);font-size:0.8125rem;">
+            Your storage folder is ready. Continue to build the index.
+        </p>
+        {% endif %}
+        <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+            <a href="?step=5" class="btn btn-primary">Continue to build index</a>
+            <a href="?step=2" class="btn btn-secondary">Change storage path</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Step 5: Build index ───────────────────────────────────────────────── #}
+{% if step == 5 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 5: Build or rebuild index</h3>
+    <p class="form-helper">The index turns your PDFs into searchable passages. After indexing, Ask Library can retrieve evidence from your own Zotero papers.</p>
+
+    <div id="index-status" style="margin:1rem 0;">
+        {% if index_state and index_state.running %}
+            <div class="alert alert-info">
+                <span class="spinner"></span> Indexing in progress: {{ index_state.status }}
+                <div style="width:100%;height:0.375rem;background:var(--color-surface-soft);border-radius:9999px;margin-top:0.5rem;">
+                    <div style="height:100%;background:var(--color-primary);border-radius:9999px;width:0%;" id="progress-bar-fill"></div>
+                </div>
+            </div>
+        {% elif index_state and index_state.stats %}
+            <div class="alert alert-success">
+                <strong>✓ Index complete:</strong> {{ index_state.stats.indexed }} documents indexed, {{ index_state.stats.total_chunks }} chunks created.
+                {% if index_state.stats.skipped %}{{ index_state.stats.skipped }} skipped{% endif %}
+                {% if index_state.stats.failed %}{{ index_state.stats.failed }} failed{% endif %}
+            </div>
+        {% elif index_state and index_state.error %}
+            <div class="alert alert-danger">
+                <strong>Error:</strong> {{ index_state.error }}
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-left:0.5rem;"
+                        onclick="copyDiagnosticsFromState()">Copy diagnostic summary</button>
+            </div>
+        {% elif index.exists %}
+            <div class="alert alert-success">
+                <strong>✓ Index exists:</strong> {{ index.documents }} documents, {{ index.chunks }} chunks.
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No index built yet. Click the button below to create one from your PDFs.
+            </div>
+        {% endif %}
+    </div>
+
+    <form id="index-form" onsubmit="startIndexing(event)" style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <div>
+                <label class="form-label" for="idx-collection">Collection filter (optional)
+                    {{ help_tooltip("Limit indexing to a specific Zotero collection. Leave empty to index all PDFs in storage.") }}
+                </label>
+                <input type="text" id="idx-collection" name="collection" placeholder="e.g. My Publications"
+                       class="form-input" style="max-width:14rem;">
+            </div>
+            <div>
+                <label class="form-label" for="idx-limit">Limit (optional)
+                    {{ help_tooltip("Maximum number of PDFs to index. Useful for testing. Leave empty for all.") }}
+                </label>
+                <input type="number" id="idx-limit" name="limit" placeholder="All" min="1"
+                       class="form-input" style="max-width:6rem;">
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;color:var(--color-text-primary);cursor:pointer;">
+                <input type="checkbox" name="force" class="form-checkbox"> Force re-index all PDFs
+            </label>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button type="submit" id="index-btn" class="btn btn-primary"
+                    {% if index_state and index_state.running %}disabled{% endif %}>
+                {% if index.exists %}Rebuild index{% else %}Build index{% endif %}
+            </button>
+            {% if index.exists %}
+            <button type="button" class="btn btn-danger btn-sm" onclick="clearIndex()">Clear index</button>
+            {% endif %}
+            <span id="index-indicator" style="display:none;align-items:center;gap:0.375rem;font-size:0.8125rem;color:var(--color-text-muted);">
+                <span class="spinner"></span> Processing…
+            </span>
+        </div>
+    </form>
+    <p class="form-helper" style="margin-top:0.75rem;">Rebuild the index when you add many new PDFs or change embedding settings.</p>
+</div>
+
+<script>
+async function startIndexing(e) {
+    e.preventDefault();
+    var btn = document.getElementById("index-btn");
+    var indicator = document.getElementById("index-indicator");
+    btn.disabled = true;
+    indicator.style.display = 'inline-flex';
+
+    try {
+        var formData = new FormData(e.target);
+        await fetch("/index/start", { method: "POST", body: formData });
+        pollIndexStatus();
+    } catch(err) {
+        btn.disabled = false;
+        indicator.style.display = 'none';
+    }
+}
+
+async function pollIndexStatus() {
+    var btn = document.getElementById("index-btn");
+    var indicator = document.getElementById("index-indicator");
+    var statusEl = document.getElementById("index-status");
+
+    try {
+        while (true) {
+            var resp = await fetch("/index/status");
+            var data = await resp.json();
+
+            if (data.status === "complete") {
+                btn.disabled = false;
+                indicator.style.display = 'none';
+                statusEl.innerHTML =
+                    '<div class="alert alert-success">' +
+                    '<strong>✓ Indexing complete:</strong> ' +
+                    data.stats.indexed + ' documents, ' + data.stats.total_chunks + ' chunks.' +
+                    '</div>' +
+                    '<p style="margin-top:0.5rem;"><a href="?step=6" class="btn btn-primary btn-sm">Test your index →</a></p>';
+                return;
+            }
+            if (data.status === "error") {
+                btn.disabled = false;
+                indicator.style.display = 'none';
+                statusEl.innerHTML =
+                    '<div class="alert alert-danger">' +
+                    '<strong>Error:</strong> ' + (data.error || 'Unknown error') +
+                    '</div>';
+                return;
+            }
+            // Update progress
+            if (data.total) {
+                var pct = Math.round((data.progress / data.total) * 100);
+                var bar = document.getElementById('progress-bar-fill');
+                if (bar) bar.style.width = pct + '%';
+            }
+            statusEl.innerHTML =
+                '<div class="alert alert-info">' +
+                '<span class="spinner"></span> Indexing: ' + (data.status || 'processing') +
+                (data.total ? ' (' + data.progress + '/' + data.total + ')' : '') +
+                '<div style="width:100%;height:0.375rem;background:var(--color-surface-soft);border-radius:9999px;margin-top:0.5rem;">' +
+                '<div style="height:100%;background:var(--color-primary);border-radius:9999px;width:' + (data.total ? Math.round((data.progress/data.total)*100) : 0) + '%;" id="progress-bar-fill"></div>' +
+                '</div></div>';
+
+            await new Promise(function(r) { setTimeout(r, 2000); });
+        }
+    } catch(err) {
+        btn.disabled = false;
+        indicator.style.display = 'none';
+    }
+}
+
+function clearIndex() {
+    if (confirm('Clear the entire index? This cannot be undone.')) {
+        alert('Index clearing is not yet implemented via the UI. Use the CLI.');
+    }
+}
+
+function copyDiagnosticsFromState() {
+    fetch('/index/diagnostics')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var text = JSON.stringify(data, null, 2);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() { alert('Diagnostics copied!'); });
+            }
+        });
+}
+</script>
+{% endif %}
+
+{# ── Step 6: Test RAG ──────────────────────────────────────────────────── #}
+{% if step == 6 %}
+<div class="card card-padded mb-6">
+    <h3 class="card-title" style="margin-bottom:0.25rem;">Step 6: Test RAG with a sample question</h3>
+    <p class="form-helper">Verify that your index works by asking a question that should match your indexed papers.</p>
+
+    {% if not index.exists %}
+    <div class="alert alert-warning" style="margin-top:1rem;">
+        <strong>No index available.</strong> Go back to Step 5 and build the index first.
+    </div>
+    <a href="?step=5" class="btn btn-secondary">← Build index</a>
+    {% else %}
+    <form action="/ask-library" method="POST" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <input type="hidden" name="action" value="rag">
+        <div>
+            <label class="form-label" for="test-question">Test question</label>
+            <input type="text" id="test-question" name="question" required
+                   placeholder="What topics do my papers cover?"
+                   class="form-input">
+        </div>
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+                <label class="form-label" for="test-model">Model</label>
+                <select id="test-model" name="model" class="form-select">
+                    {% for alias in models %}
+                    <option value="{{ alias }}" {% if alias == 'claude' %}selected{% endif %}>{{ alias }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Test RAG</button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Navigation between steps ───────────────────────────────────────────── #}
+<div style="display:flex;justify-content:space-between;margin-top:1rem;">
+    {% if step > 1 %}
+    <a href="?step={{ step - 1 }}" class="btn btn-secondary">← Previous step</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+    {% if step < 6 %}
+    <a href="?step={{ step + 1 }}" class="btn btn-secondary">Next step →</a>
+    {% else %}
+    <a href="/ask-library?tab=rag" class="btn btn-primary">Go to Ask Library →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

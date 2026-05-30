@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import help_tooltip, result_panel, card, alert, empty_state with context %}
+{% block content %}
+
+{{ page_header("Ask Library", "Ask questions with or without evidence from your indexed Zotero papers.") }}
+
+{# ── No index warning ──────────────────────────────────────────────────── #}
+{% if not index_exists %}
+<div class="alert alert-warning mb-5">
+    <strong>No research index found.</strong> Citation‑aware answers need an index of your Zotero PDFs. You can still ask a model without library context below, but source‑grounded answers require indexing.
+    <div style="margin-top:0.5rem;display:flex;gap:0.5rem;">
+        <a href="/index-setup" class="btn btn-primary btn-sm">Set up index</a>
+        <a href="?tab=single" class="btn btn-secondary btn-sm">Ask without context</a>
+    </div>
+</div>
+{% endif %}
+
+{# ── Tabs ──────────────────────────────────────────────────────────────── #}
+<div class="tab-bar" role="tablist">
+    <a href="?tab=rag" class="tab-btn {% if tab == 'rag' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if tab == 'rag' else 'false' }}">
+        💬 Ask with Zotero context
+    </a>
+    <a href="?tab=single" class="tab-btn {% if tab == 'single' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if tab == 'single' else 'false' }}">
+        💡 Ask without context
+    </a>
+    <a href="?tab=compare" class="tab-btn {% if tab == 'compare' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if tab == 'compare' else 'false' }}">
+        ⚖️ Compare models
+    </a>
+</div>
+
+{# ── TAB: Ask with Zotero context (RAG) ────────────────────────────────── #}
+{% if tab == 'rag' %}
+<div class="card card-padded mb-6">
+    <form method="POST" style="display:flex;flex-direction:column;gap:0.875rem;">
+        <input type="hidden" name="action" value="rag">
+
+        <div>
+            <label class="form-label" for="rag-question">Question</label>
+            <textarea id="rag-question" name="question" rows="3" required
+                      placeholder="What are the main approaches to filtering NUMT in clinical mtDNA sequencing?"
+                      class="form-textarea">{{ question }}</textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.75rem;">
+            <div>
+                <label class="form-label" for="rag-model">Model</label>
+                <select id="rag-model" name="model" class="form-select" style="width:100%;">
+                    {% for alias in models %}
+                    <option value="{{ alias }}" {% if alias == model %}selected{% endif %}>{{ alias }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="rag-k">
+                    Chunks (k = <span id="k-val">{{ k }}</span>)
+                    {{ help_tooltip("A chunk is a short passage extracted from a PDF. The model receives the most relevant chunks as evidence. More chunks can improve coverage but may add noise and increase cost. Use 8–12 for focused questions and 15–25 for broader literature questions.") }}
+                </label>
+                <input type="range" id="rag-k" name="k" min="5" max="50" value="{{ k }}"
+                       oninput="document.getElementById('k-val').textContent = this.value"
+                       class="form-range">
+            </div>
+            <div>
+                <label class="form-label" for="rag-threshold">
+                    Threshold (<span id="t-val">{{ threshold }}</span>)
+                    {{ help_tooltip("Controls how strict the retrieval filter is. A lower value returns more passages (broader recall). A higher value returns only stronger matches (stricter). 0.35 is a balanced default. 0.20–0.30 for broad recall, 0.45–0.60 for stricter evidence.") }}
+                </label>
+                <input type="range" id="rag-threshold" name="threshold" min="0.1" max="0.9" step="0.05" value="{{ threshold }}"
+                       oninput="document.getElementById('t-val').textContent = this.value"
+                       class="form-range">
+            </div>
+            <div>
+                <label class="form-label" for="rag-save">Save as (optional)</label>
+                <input type="text" id="rag-save" name="save_name" placeholder="e.g. chapter1 numt evidence" value="{{ save_name }}"
+                       class="form-input">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" {% if not index_exists %}disabled{% endif %}>
+            Ask with evidence
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{# ── TAB: Ask without context ──────────────────────────────────────────── #}
+{% if tab == 'single' %}
+<div class="card card-padded mb-6">
+    <form method="POST" style="display:flex;flex-direction:column;gap:0.875rem;">
+        <input type="hidden" name="action" value="single">
+
+        <div>
+            <label class="form-label" for="single-question">Question</label>
+            <textarea id="single-question" name="question" rows="3" required
+                      placeholder="Explain the central dogma of molecular biology."
+                      class="form-textarea">{{ question }}</textarea>
+        </div>
+
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+                <label class="form-label" for="single-model">Model
+                    {{ help_tooltip("Choose which model will answer. Use stronger models for synthesis and critique. Use smaller or local models for quick drafts and experiments.") }}
+                </label>
+                <select id="single-model" name="model" class="form-select">
+                    {% for alias in models %}
+                    <option value="{{ alias }}" {% if alias == model %}selected{% endif %}>{{ alias }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="single-save">Save as (optional)</label>
+                <input type="text" id="single-save" name="save_name" placeholder="session name" value="{{ save_name }}"
+                       class="form-input">
+            </div>
+            <button type="submit" class="btn btn-primary">Ask model</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{# ── TAB: Compare models ───────────────────────────────────────────────── #}
+{% if tab == 'compare' %}
+<div class="card card-padded mb-6">
+    <form method="POST" style="display:flex;flex-direction:column;gap:0.875rem;">
+        <input type="hidden" name="action" value="compare">
+
+        <div>
+            <label class="form-label" for="compare-question">Question
+                {{ help_tooltip("This sends the same question to multiple models. Use it when you want to compare reasoning quality, writing style, or disagreement between providers.") }}
+            </label>
+            <textarea id="compare-question" name="question" rows="3" required
+                      placeholder="Your research question…"
+                      class="form-textarea">{{ question }}</textarea>
+        </div>
+
+        <div>
+            <label class="form-label">Models to compare</label>
+            <div style="display:flex;flex-wrap:wrap;gap:0.375rem 0.75rem;margin-top:0.25rem;">
+                {% for alias in models %}
+                <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;color:var(--color-text-primary);padding:0.25rem 0.5rem;border:1px solid var(--color-border);border-radius:0.375rem;cursor:pointer;">
+                    <input type="checkbox" name="models" value="{{ alias }}"
+                           {% if alias in selected_models %}checked{% endif %}
+                           class="form-checkbox">
+                    {{ alias }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;color:var(--color-text-primary);cursor:pointer;">
+                <input type="checkbox" name="use_rag" {% if use_rag %}checked{% endif %}
+                       {% if not index_exists %}disabled{% endif %}
+                       class="form-checkbox">
+                Use RAG context
+                {% if not index_exists %}<span style="color:var(--color-text-muted);font-size:0.75rem;">(no index)</span>{% endif %}
+                {{ help_tooltip("When enabled, the answer uses retrieved Zotero chunks. When disabled, the model answers only from its general knowledge and your prompt.") }}
+            </label>
+            <div style="display:flex;align-items:center;gap:0.375rem;">
+                <label class="form-label" for="compare-save" style="margin:0;">Save as</label>
+                <input type="text" id="compare-save" name="save_name" placeholder="comparison name" value="{{ save_name }}"
+                       class="form-input" style="width:auto;">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Compare</button>
+    </form>
+</div>
+{% endif %}
+
+{# ── Results ───────────────────────────────────────────────────────────── #}
+{% if result %}
+    {{ result_panel(result.model, result.answer | safe_nl2br, result.input_tokens, result.output_tokens, result.cost, result.sources) }}
+{% endif %}
+
+{% if outcomes %}
+<div>
+    <h3 class="card-title" style="margin-bottom:0.75rem;">Comparison results</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;">
+        {% for model_name, r in outcomes.items() %}
+            {{ result_panel(model_name, r.answer | safe_nl2br, r.input_tokens, r.output_tokens, r.cost) }}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

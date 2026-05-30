@@ -298,119 +298,18 @@ def index():
 
 @app.route("/ask", methods=["GET", "POST"])
 def ask():
-    """Ask a research question with RAG."""
-    result = None
-    question = ""
-    model = "claude"
-    k = DEFAULT_K
-    threshold = DEFAULT_THRESHOLD
-    save_name = ""
-
-    # Pre-fill question from the prompt-library link, if present.
-    prompt_slug = request.args.get("prompt_slug", "").strip()
-    if prompt_slug and request.method == "GET":
-        prompt = prompts_mod.get_prompt(prompt_slug)
-        if prompt:
-            question = prompt.body
-            model = prompt.recommended_model if prompt.recommended_model in MODELS else model
-
-    if request.method == "POST":
-        question = request.form.get("question", "").strip()
-        model = request.form.get("model", "claude")
-        k = _safe_int(request.form.get("k"), DEFAULT_K)
-        threshold = _safe_float(request.form.get("threshold"), DEFAULT_THRESHOLD)
-        save_name = request.form.get("save_name", "").strip()
-
-        if question and _get_index_data()["exists"]:
-            try:
-                result = ask_research_question(
-                    question=question,
-                    model=model,
-                    temperature=0.3,
-                    k=k,
-                    threshold=threshold,
-                )
-                if save_name:
-                    save_research_session(save_name, question, result)
-            except Exception as e:
-                result = {"answer": f"Error: {e}", "sources": [], "model": model, "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
-
-    return render_template(
-        "ask.html",
-        question=question,
-        model=model,
-        k=k,
-        threshold=threshold,
-        save_name=save_name,
-        result=result,
-        models=MODELS,
-        index_exists=_get_index_data()["exists"],
-    )
+    """Backward-compatible: redirect GET to new Ask Library, delegate POST."""
+    if request.method == "GET":
+        return redirect(url_for("ask_library", tab="rag"), code=302)
+    return ask_library()
 
 
 @app.route("/compare", methods=["GET", "POST"])
 def compare():
-    """Compare answers from multiple models."""
-    outcomes = None
-    question = ""
-    selected_models = ["claude", "gemini"]
-    use_rag = True
-    save_name = ""
-
-    if request.method == "POST":
-        question = request.form.get("question", "").strip()
-        selected_models = request.form.getlist("models")
-        use_rag = request.form.get("use_rag") == "on"
-        save_name = request.form.get("save_name", "").strip()
-
-        if question and selected_models:
-            try:
-                if use_rag and _get_index_data()["exists"]:
-                    outcomes = compare_research_question(
-                        question=question,
-                        models=selected_models,
-                    )
-                else:
-                    from concurrent.futures import ThreadPoolExecutor, as_completed
-                    outcomes = {}
-                    with ThreadPoolExecutor(max_workers=len(selected_models)) as executor:
-                        futures = {
-                            executor.submit(ask_model, question, model=m, temperature=0.3): m
-                            for m in selected_models
-                        }
-                        for future in as_completed(futures):
-                            m = futures[future]
-                            try:
-                                r = future.result()
-                                outcomes[m] = {
-                                    "answer": r["text"],
-                                    "model": MODELS.get(m, m),
-                                    "input_tokens": r.get("input_tokens", 0),
-                                    "output_tokens": r.get("output_tokens", 0),
-                                    "cost": r.get("cost", 0.0),
-                                }
-                            except Exception as e:
-                                outcomes[m] = {"answer": f"Error: {e}", "model": m, "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
-
-                if save_name:
-                    try:
-                        from research_assistant.researcher import _save_comparison_session
-                        _save_comparison_session(save_name, question, outcomes)
-                    except Exception as e:
-                        logger.warning("Failed to save comparison session: %s", e)
-            except Exception as e:
-                outcomes = {"error": {"answer": str(e), "model": "", "input_tokens": 0, "output_tokens": 0, "cost": 0.0}}
-
-    return render_template(
-        "compare.html",
-        question=question,
-        selected_models=selected_models,
-        use_rag=use_rag,
-        save_name=save_name,
-        outcomes=outcomes,
-        models=MODELS,
-        index_exists=_get_index_data()["exists"],
-    )
+    """Backward-compatible: redirect GET to new Ask Library compare tab, delegate POST."""
+    if request.method == "GET":
+        return redirect(url_for("ask_library", tab="compare"), code=302)
+    return ask_library()
 
 
 @app.route("/sessions")
@@ -478,9 +377,8 @@ def index_status():
 
 @app.route("/index")
 def index_page():
-    """Index management page."""
-    state = _get_index_state()
-    return render_template("index.html", index=_get_index_data(), sessions=list_research_sessions()[:5], models=MODELS, index_state=state, tab="index")
+    """Redirect to the new Index & Zotero setup page."""
+    return redirect(url_for("index_setup"), code=302)
 
 
 # ── Generic tool routes (driven by tool_runner.TOOL_SPECS) ──────────────────
@@ -939,6 +837,258 @@ def settings_page():
         flash_error=flash_error,
         flash_ok=flash_ok,
     )
+
+
+# ── Consolidated UI routes ───────────────────────────────────────────────────
+
+
+@app.route("/ask-library", methods=["GET", "POST"])
+def ask_library():
+    """Consolidated Ask Library: RAG, no-context, and model comparison in tabs."""
+    result = None
+    question = ""
+    model = "claude"
+    k = DEFAULT_K
+    threshold = DEFAULT_THRESHOLD
+    save_name = ""
+    outcomes = None
+    selected_models = ["claude", "gemini"]
+    use_rag = True
+    tab = request.args.get("tab", "rag")
+    index_exists = _get_index_data()["exists"]
+
+    if request.method == "POST":
+        action = request.form.get("action", "rag")
+
+        if action == "rag":
+            question = request.form.get("question", "").strip()
+            model = request.form.get("model", "claude")
+            k = _safe_int(request.form.get("k"), DEFAULT_K)
+            threshold = _safe_float(request.form.get("threshold"), DEFAULT_THRESHOLD)
+            save_name = request.form.get("save_name", "").strip()
+            tab = "rag"
+
+            if question and index_exists:
+                try:
+                    result = ask_research_question(
+                        question=question, model=model, temperature=0.3,
+                        k=k, threshold=threshold,
+                    )
+                    if save_name:
+                        save_research_session(save_name, question, result)
+                except Exception as e:
+                    result = {"answer": f"Error: {e}", "sources": [], "model": model,
+                              "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
+
+        elif action == "single":
+            question = request.form.get("question", "").strip()
+            model = request.form.get("model", "claude")
+            save_name = request.form.get("save_name", "").strip()
+            tab = "single"
+            if question:
+                try:
+                    r = ask_model(question, model=model, temperature=0.3)
+                    result = {"answer": r["text"], "sources": [], "model": model,
+                              "input_tokens": r.get("input_tokens", 0),
+                              "output_tokens": r.get("output_tokens", 0),
+                              "cost": r.get("cost", 0.0)}
+                    if save_name:
+                        save_research_session(save_name, question, result)
+                except Exception as e:
+                    result = {"answer": f"Error: {e}", "sources": [], "model": model,
+                              "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
+
+        elif action == "compare":
+            question = request.form.get("question", "").strip()
+            selected_models = request.form.getlist("models")
+            use_rag = request.form.get("use_rag") == "on"
+            save_name = request.form.get("save_name", "").strip()
+            tab = "compare"
+            if question and selected_models:
+                try:
+                    if use_rag and index_exists:
+                        outcomes = compare_research_question(question=question, models=selected_models)
+                    else:
+                        from concurrent.futures import ThreadPoolExecutor, as_completed
+                        outcomes = {}
+                        with ThreadPoolExecutor(max_workers=len(selected_models)) as executor:
+                            futures = {
+                                executor.submit(ask_model, question, model=m, temperature=0.3): m
+                                for m in selected_models
+                            }
+                            for future in as_completed(futures):
+                                m = futures[future]
+                                try:
+                                    r = future.result()
+                                    outcomes[m] = {"answer": r["text"], "model": MODELS.get(m, m),
+                                                   "input_tokens": r.get("input_tokens", 0),
+                                                   "output_tokens": r.get("output_tokens", 0),
+                                                   "cost": r.get("cost", 0.0)}
+                                except Exception as e:
+                                    outcomes[m] = {"answer": f"Error: {e}", "model": m,
+                                                   "input_tokens": 0, "output_tokens": 0, "cost": 0.0}
+                    if save_name:
+                        try:
+                            from research_assistant.researcher import _save_comparison_session
+                            _save_comparison_session(save_name, question, outcomes)
+                        except Exception as e:
+                            logger.warning("Failed to save comparison session: %s", e)
+                except Exception as e:
+                    outcomes = {"error": {"answer": str(e), "model": "", "input_tokens": 0,
+                                          "output_tokens": 0, "cost": 0.0}}
+
+    return render_template(
+        "ask_library.html",
+        question=question, model=model, k=k, threshold=threshold,
+        save_name=save_name, result=result, outcomes=outcomes,
+        selected_models=selected_models, use_rag=use_rag,
+        models=MODELS, index_exists=index_exists, tab=tab,
+    )
+
+
+@app.route("/library-search")
+def library_search():
+    """Search Zotero library by title, author, abstract, collection, tag, or citekey."""
+    from research_assistant.workspace import library as lib_mod
+    query = request.args.get("q", "").strip()
+    field = request.args.get("field", "all")
+    results = []
+    pdfs = []
+    if query:
+        try:
+            results = lib_mod.search(query, field=field) if hasattr(lib_mod, 'search') else []
+        except Exception:
+            results = []
+    try:
+        pdfs = lib_mod.list_pdfs()
+    except Exception:
+        pdfs = []
+    return render_template(
+        "library_search.html", query=query, field=field,
+        results=results, pdfs=pdfs, pdf_root=str(lib_mod.configured_root()),
+    )
+
+
+@app.route("/paper-discovery")
+def paper_discovery():
+    """Paper discovery — OpenAlex, Semantic Scholar, Elicit in one page."""
+    return render_template("paper_discovery.html", models=MODELS)
+
+
+@app.route("/index-setup")
+def index_setup():
+    """Index and Zotero setup wizard."""
+    state = _get_index_state()
+    index_data = _get_index_data()
+    zotero_storage = os.environ.get("ZOTERO_STORAGE", "")
+    thesis_root = os.environ.get("THESIS_ROOT", "")
+    zotero_user_id = os.environ.get("ZOTERO_USER_ID", "")
+    zotero_api_key_set = bool(os.environ.get("ZOTERO_API_KEY", ""))
+
+    # Check path existence
+    storage_exists = bool(zotero_storage and Path(zotero_storage).exists())
+    thesis_exists = bool(thesis_root and Path(thesis_root).exists())
+
+    # Count PDFs if path exists
+    pdf_count = 0
+    if storage_exists:
+        try:
+            pdf_count = len(list(Path(zotero_storage).rglob("*.pdf")))
+        except Exception:
+            pdf_count = 0
+
+    return render_template(
+        "index_setup.html",
+        index=index_data, index_state=state,
+        zotero_storage=zotero_storage, thesis_root=thesis_root,
+        zotero_user_id=zotero_user_id, zotero_api_key_set=zotero_api_key_set,
+        storage_exists=storage_exists, thesis_exists=thesis_exists,
+        pdf_count=pdf_count,
+    )
+
+
+@app.route("/writing-studio", methods=["GET", "POST"])
+def writing_studio():
+    """Consolidated Writing Studio — outline, draft, critique, paraphrase in one page."""
+    from research_assistant.web.tool_runner import get_spec, run_tool
+    task = request.args.get("task", "angles")
+    spec = get_spec("ideas")  # paragraph angles
+    result = None
+
+    if request.method == "POST":
+        tool_name = request.form.get("tool_name", "ideas")
+        spec = get_spec(tool_name)
+        if spec:
+            result = run_tool(tool_name, request.form)
+            task = tool_name
+
+    return render_template(
+        "writing_studio.html",
+        task=task, result=result, spec=spec, models=MODELS,
+    )
+
+
+# ── Old-to-new redirects (backward compatible) ───────────────────────────────
+# These were merged into the original route functions above — each original
+# GET handler now redirects to the new consolidated page while POST still
+# works for backward compatibility.
+
+
+# ── Error handlers ───────────────────────────────────────────────────────────
+
+
+@app.errorhandler(404)
+def not_found_error(e):
+    """Styled 404 page."""
+    if request.path.startswith("/static") or request.path.startswith("/favicon"):
+        return "", 404
+    return render_template("error.html", code=404,
+                           title="Page not found",
+                           body="The page you requested does not exist. It may have been moved or the URL may be incorrect.",
+                           show_diagnostics=False), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Styled 500 page — no raw Internal Server Error."""
+    original = getattr(e, 'original_exception', e) if e else None
+    exc_type = type(original).__name__ if original else "Exception"
+    diagnostics = ""
+    if app.debug and original:
+        import traceback
+        diagnostics = traceback.format_exc()
+    logger.error("500 on %s: %s", request.path, str(original or e))
+    return render_template("error.html", code=500,
+                           title="Something went wrong",
+                           body="The app hit an internal error while processing this request. Your files and settings were not intentionally changed.",
+                           exc_type=exc_type, route=request.path,
+                           show_diagnostics=app.debug,
+                           diagnostics=diagnostics[:5000] if diagnostics else ""), 500
+
+
+# ── Safe diagnostics helper ──────────────────────────────────────────────────
+
+
+@app.route("/index/diagnostics")
+def index_diagnostics():
+    """Safe diagnostic summary for indexing (no secrets)."""
+    import platform
+    import sys
+    index_data = _get_index_data()
+    state = _get_index_state()
+    env_vars = {k: ("***" if any(s in k.upper() for s in ("KEY", "SECRET", "TOKEN", "PASSWORD")) else v)
+                for k, v in sorted(os.environ.items())
+                if k.startswith(("ZOTERO_", "THESIS_", "RA_", "FLASK_", "CHROMA_", "EMBEDDING_"))}
+    diag = {
+        "platform": platform.platform(),
+        "python": sys.version,
+        "chroma_dir": str(CHROMA_DIR),
+        "chroma_dir_exists": CHROMA_DIR.exists(),
+        "index": index_data,
+        "index_state": {k: v for k, v in state.items() if k != "error"},
+        "env": env_vars,
+    }
+    return jsonify(diag)
 
 
 def _shellquote(s: str) -> str:

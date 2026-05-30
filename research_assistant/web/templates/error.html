@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import error_state with context %}
+{% block content %}
+<div class="flex items-center justify-center" style="min-height:60vh;">
+    <div style="max-width:32rem;width:100%;">
+        <div class="state-box error-state">
+            <div class="state-icon" style="font-size:2.5rem;">{{ '🔍' if code == 404 else '⚠️' }}</div>
+            <div class="state-title" style="font-size:1.25rem;">{{ title }}</div>
+            <div class="state-body">{{ body }}</div>
+            {% if code == 500 %}
+            <div class="state-body" style="color:var(--color-text-muted);">
+                Error type: <code>{{ exc_type }}</code> on <code>{{ route }}</code>
+            </div>
+            {% endif %}
+            <div class="state-actions">
+                <a href="/" class="btn btn-primary">Go to dashboard</a>
+                <a href="/settings" class="btn btn-secondary">Open settings</a>
+                {% if code == 500 %}
+                <button type="button" class="btn btn-secondary" onclick="location.reload()">Retry request</button>
+                {% endif %}
+            </div>
+            {% if show_diagnostics and diagnostics %}
+            <div style="margin-top:1.25rem;text-align:left;width:100%;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                    <span style="font-size:0.75rem;color:var(--color-text-muted);">Diagnostic summary (dev mode only)</span>
+                    <button type="button" class="copy-btn" onclick="copyDiagnostics(this)">Copy</button>
+                </div>
+                <pre class="diagnostic-box">{{ diagnostics }}</pre>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
