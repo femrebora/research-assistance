@@ -1,4 +1,3 @@
-# ruff: noqa: RUF001
 """Tests for agentic/text_cleanup.py — mechanical prose post-processing."""
 from __future__ import annotations
 
