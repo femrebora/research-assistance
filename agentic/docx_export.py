@@ -1,7 +1,9 @@
+# ruff: noqa: RUF001
 """docx_export.py — convert paper.md + figures to a styled DOCX file."""
 
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
 
@@ -106,20 +108,15 @@ def export_to_docx(markdown_text: str, figures_dir: str, output_path: str) -> st
 
                     p_img = doc.add_paragraph()
                     p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    try:
+                    with contextlib.suppress(Exception):
                         p_img.add_run().add_picture(str(img_path), width=Inches(5.0))
-                    except Exception:
-                        pass
                     doc.add_paragraph()
 
         elif line.startswith("*Figure"):
             pass  # Handled above
 
-        # Lists
-        elif line.strip().startswith("- ") or line.strip().startswith("* "):
-            doc.add_paragraph(_strip_bold(line.strip()))
-
-        elif re.match(r"^\d+\.\s", line.strip()):
+        # Lists — bullet or numbered, both plain paragraphs
+        elif line.strip().startswith("- ") or line.strip().startswith("* ") or re.match(r"^\d+\.\s", line.strip()):
             doc.add_paragraph(_strip_bold(line.strip()))
 
         # Regular paragraphs — strip **

@@ -7,6 +7,7 @@ An in-memory cache with short TTL avoids re-reading from disk on every SSE poll.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import threading
@@ -109,10 +110,8 @@ def get_events(job_id: str, since_index: int = 0) -> tuple[list[dict], int]:
 
     new_events = []
     for line in lines[since_index:]:
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             new_events.append(json.loads(line.strip()))
-        except json.JSONDecodeError:
-            pass
 
     return new_events, len(lines)
 
