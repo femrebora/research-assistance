@@ -1,7 +1,12 @@
 """LangGraph orchestrator — compiles the paper generation state machine."""
 from __future__ import annotations
 
+import contextlib
 import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langgraph.graph import StateGraph
 
 from agentic.agents import (
     run_assessor,
@@ -78,6 +83,7 @@ def _log(agent: str, msg: str = "") -> None:
 def build_graph():
     """Build and compile the paper generation state machine."""
     from langgraph.graph import END, StateGraph
+    from langgraph.graph import END, StateGraph  # lazy — langgraph is an optional PaperForge dep
 
     builder = StateGraph(PaperState)
 
@@ -139,6 +145,76 @@ def build_graph():
 
     builder.add_edge("plagiarism_check", "figure_gen")
 
+    builder.add_edge("figure_gen", "figure_supervisor")
+    builder.add_conditional_edges("figure_supervisor", _should_regenerate_figure, {
+        "regenerate": "figure_gen",
+        "pass": END,
+    })
+
+    return builder.compile()
+
+
+def build_review_graph() -> StateGraph:
+    """Build the review-article pipeline (autonomous web research -> paper).
+
+    Same downstream stages as `build_graph`, but the Code Analyst entry node is
+    replaced by a Literature Researcher that searches the web for the topic in
+    `state["research_topic"]`.
+    """
+    from langgraph.graph import END, StateGraph  # lazy — langgraph is an optional PaperForge dep
+
+    from agentic.agents.literature_researcher import run_literature_researcher
+
+    builder = StateGraph(PaperState)
+
+    def lit_wrapper(state: dict) -> dict:
+        _log("Literature Researcher", "searching web & synthesizing...")
+        return _collect_agent_calls(state, run_literature_researcher(state))
+
+    def writer_wrapper(state: dict) -> dict:
+        _log("Writer (DeepSeek)", "generating review draft...")
+        return _collect_agent_calls(state, run_writer(state))
+
+    def assessor_wrapper(state: dict) -> dict:
+        _log("Assessor (Claude)", "evaluating draft...")
+        return _collect_agent_calls(state, run_assessor(state))
+
+    def rewriter_wrapper(state: dict) -> dict:
+        n = state.get("text_rewrite_count", 0) + 1
+        _log("Rewriter (Claude)", f"revision #{n}...")
+        return _collect_agent_calls(state, run_rewriter(state))
+
+    def plagiarism_wrapper(state: dict) -> dict:
+        _log("Plagiarism Check (DeepSeek)", "checking originality...")
+        return _collect_agent_calls(state, run_plagiarism_check(state))
+
+    def figure_gen_wrapper(state: dict) -> dict:
+        n = state.get("figure_rewrite_count", 0) + 1
+        _log("Figure Gen (Gemini)", f"generating figures (#{n})...")
+        return _collect_agent_calls(state, run_figure_gen(state))
+
+    def figure_supervisor_wrapper(state: dict) -> dict:
+        _log("Figure Supervisor (Claude)", "reviewing figures...")
+        return _collect_agent_calls(state, run_figure_supervisor(state))
+
+    builder.add_node("literature_researcher", lit_wrapper)
+    builder.add_node("writer", writer_wrapper)
+    builder.add_node("assessor", assessor_wrapper)
+    builder.add_node("rewriter", rewriter_wrapper)
+    builder.add_node("plagiarism_check", plagiarism_wrapper)
+    builder.add_node("figure_gen", figure_gen_wrapper)
+    builder.add_node("figure_supervisor", figure_supervisor_wrapper)
+
+    builder.set_entry_point("literature_researcher")
+    builder.add_edge("literature_researcher", "writer")
+    builder.add_edge("writer", "assessor")
+
+    builder.add_conditional_edges("assessor", _should_rewrite, {
+        "rewrite": "rewriter",
+        "pass": "plagiarism_check",
+    })
+    builder.add_edge("rewriter", "assessor")
+    builder.add_edge("plagiarism_check", "figure_gen")
     builder.add_edge("figure_gen", "figure_supervisor")
     builder.add_conditional_edges("figure_supervisor", _should_regenerate_figure, {
         "regenerate": "figure_gen",

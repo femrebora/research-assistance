@@ -64,6 +64,7 @@ MOCK_FIGURE_SUPERVISOR = (
 
 
 class TestFullPipeline:
+    @patch("agentic.bridge.DEEPSEEK_API_KEY", "test-deepseek-key")
     @patch("agentic.bridge.urllib.request.urlopen")
     @patch("agentic.bridge.subprocess.run")
     def test_end_to_end_with_mocks(self, mock_run, mock_urlopen):
@@ -117,6 +118,7 @@ class TestFullPipeline:
             assert len(final_state["agent_calls"]) == 6
             assert final_state["text_rewrite_count"] == 0
 
+    @patch("agentic.bridge.DEEPSEEK_API_KEY", "test-deepseek-key")
     @patch("agentic.bridge.urllib.request.urlopen")
     @patch("agentic.bridge.subprocess.run")
     def test_rewrite_loop_triggers_on_low_score(self, mock_run, mock_urlopen):

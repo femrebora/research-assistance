@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-slate-900">Model orchestration</h2>
+        <p class="text-sm text-slate-500 mt-1">Per-model usage from your AI call logs ({{ data.window_days }} days).</p>
+    </div>
+    <form method="GET" class="flex items-center gap-2">
+        <label class="text-xs text-slate-500">Window</label>
+        <select name="window" onchange="this.form.submit()"
+                class="px-2 py-1 border border-slate-300 rounded text-sm bg-white">
+            {% for opt in [7, 14, 30, 90] %}
+            <option value="{{ opt }}" {% if opt == data.window_days %}selected{% endif %}>{{ opt }} d</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<!-- Totals -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400">Calls</p>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ data.total_calls }}</p>
+    </div>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400">Input tokens</p>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ "{:,}".format(data.total_input_tokens) }}</p>
+    </div>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400">Output tokens</p>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">{{ "{:,}".format(data.total_output_tokens) }}</p>
+    </div>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <p class="text-xs uppercase tracking-wider text-slate-400">Estimated cost</p>
+        <p class="text-2xl font-semibold text-slate-900 mt-1">${{ "%.4f"|format(data.total_cost) }}</p>
+    </div>
+</div>
+
+<!-- Daily cost sparkline -->
+<div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">
+    <h3 class="font-semibold text-slate-900 mb-3">Daily spend</h3>
+    <div class="flex items-end gap-0.5 h-24">
+        {% set max_cost = (data.daily_cost | map(attribute=1) | max) or 0.0001 %}
+        {% for day, cost in data.daily_cost %}
+        {% set h = (cost / max_cost * 100) | round(0, 'ceil') %}
+        <div class="flex-1 bg-indigo-100 rounded-t relative group" style="height: {{ h if h > 1 else 1 }}%;">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 whitespace-nowrap bg-white px-1 rounded shadow">
+                {{ day[5:] }} · ${{ "%.4f"|format(cost) }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="text-[10px] text-slate-400 mt-1 text-right">hover bars for date · cost</p>
+</div>
+
+<!-- Per-model table -->
+<div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">
+    <h3 class="font-semibold text-slate-900 mb-3">Per model</h3>
+    {% if data.per_model %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="text-xs uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                <tr>
+                    <th class="text-left py-2">Model</th>
+                    <th class="text-right py-2">Calls</th>
+                    <th class="text-right py-2">Input tok</th>
+                    <th class="text-right py-2">Output tok</th>
+                    <th class="text-right py-2">Cost</th>
+                    <th class="text-right py-2">Last used</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for m in data.per_model %}
+                <tr>
+                    <td class="py-2"><code class="text-indigo-700 bg-indigo-50 rounded px-1.5 py-0.5 text-xs">{{ m.alias }}</code></td>
+                    <td class="py-2 text-right">{{ m.calls }}</td>
+                    <td class="py-2 text-right font-mono text-xs">{{ "{:,}".format(m.input_tokens) }}</td>
+                    <td class="py-2 text-right font-mono text-xs">{{ "{:,}".format(m.output_tokens) }}</td>
+                    <td class="py-2 text-right font-mono text-xs">${{ "%.4f"|format(m.cost) }}</td>
+                    <td class="py-2 text-right text-xs text-slate-500">{{ m.last_used or "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-500">No calls in this window yet. Ask, compare, or run any tool to populate this view.</p>
+    {% endif %}
+</div>
+
+<!-- Recent activity -->
+<div class="bg-white rounded-lg border border-slate-200 p-5">
+    <h3 class="font-semibold text-slate-900 mb-3">Recent calls</h3>
+    {% if data.recent %}
+    <ul class="divide-y divide-slate-100">
+        {% for r in data.recent %}
+        <li class="py-3">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                <span><code class="text-indigo-700 bg-indigo-50 rounded px-1.5 py-0.5">{{ r.model_alias }}</code> · {{ r.via }}</span>
+                <span class="font-mono">{{ r.timestamp.strftime('%Y-%m-%d %H:%M') }} · {{ r.input_tokens }} in · {{ r.output_tokens }} out · ${{ "%.4f"|format(r.cost) }}</span>
+            </div>
+            <p class="text-sm text-slate-700 truncate">{{ r.prompt_preview }}</p>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Nothing to show yet.</p>
+    {% endif %}
+</div>
+
+<p class="text-[11px] text-slate-400 mt-4">Source: {{ data.log_dir }} · JSONL files written by <code>ask_model</code>.</p>
+{% endblock %}

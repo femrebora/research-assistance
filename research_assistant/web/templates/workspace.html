@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace — {{ project.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="h-full bg-slate-50 text-slate-800 antialiased font-sans overflow-hidden">
+<div class="h-full flex flex-col">
+
+    <!-- Slim top bar so the user can always escape back to the rest of the app -->
+    <header class="h-10 px-4 border-b border-slate-200 bg-white flex items-center justify-between text-xs">
+        <div class="flex items-center gap-3">
+            <a href="/" class="text-slate-500 hover:text-slate-900">Research Assistant</a>
+            <span class="text-slate-300">/</span>
+            <a href="/workspace" class="text-slate-500 hover:text-slate-900">Workspace</a>
+            <span class="text-slate-300">/</span>
+            <span class="font-medium text-slate-900 truncate max-w-md">{{ project.title }}</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/orchestration" class="text-slate-500 hover:text-slate-900">Orchestration</a>
+            <a href="/peer-review" class="text-slate-500 hover:text-slate-900">Peer review</a>
+            <a href="/defense" class="text-slate-500 hover:text-slate-900">Defense</a>
+            <a href="/projects/{{ project.slug }}" class="text-slate-500 hover:text-slate-900">Project settings</a>
+        </div>
+    </header>
+
+    <div class="flex-1 grid grid-cols-12 overflow-hidden">
+
+        <!-- ── LEFT PANE: project + sources + quick prompts ─────────────── -->
+        <aside class="col-span-3 border-r border-slate-200 bg-white overflow-y-auto">
+            <div class="p-4 border-b border-slate-100">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400">Project</p>
+                <h2 class="text-base font-semibold text-slate-900 mt-1">{{ project.title }}</h2>
+                {% if project.research_question %}
+                <p class="text-xs text-slate-500 mt-1">{{ project.research_question }}</p>
+                {% endif %}
+                <div class="flex flex-wrap gap-1 mt-2">
+                    {% for kw in project.keywords %}
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700">{{ kw }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="p-4 border-b border-slate-100">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400">Local PDFs</p>
+                    <span class="text-[10px] text-slate-400">{{ pdfs|length }}</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-2 break-words"><code class="bg-slate-50 px-1 rounded">{{ pdf_root }}</code></p>
+                {% if pdfs %}
+                <form id="source-form" class="space-y-1 max-h-72 overflow-y-auto pr-1">
+                    {% for pdf in pdfs %}
+                    <label class="flex items-start gap-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded px-1 py-1">
+                        <input type="checkbox" name="sources" value="{{ pdf.rel_path }}" class="mt-0.5 source-checkbox">
+                        <span class="flex-1 truncate" title="{{ pdf.rel_path }}">{{ pdf.name }}</span>
+                        <span class="text-[10px] text-slate-400 shrink-0">{{ pdf.size_kb }}k</span>
+                    </label>
+                    {% endfor %}
+                </form>
+                {% else %}
+                <p class="text-xs text-slate-500">
+                    No PDFs found. Drop files into <code>{{ pdf_root }}</code> or set <code>THESIS_DOCS</code>.
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="p-4">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Quick prompts</p>
+                <ul class="space-y-1">
+                    {% for slug, label in quick_prompts %}
+                    <li>
+                        <button type="button" onclick="injectPrompt('{{ slug }}')"
+                                class="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-indigo-50 hover:text-indigo-700 text-slate-700">
+                            {{ label }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </aside>
+
+        <!-- ── CENTER PANE: editor + prompt ─────────────────────────────── -->
+        <section class="col-span-6 flex flex-col bg-slate-50 overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 bg-white flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <p class="text-[11px] uppercase tracking-wider text-slate-400">Document</p>
+                    <p class="text-xs text-slate-500 font-mono truncate">{{ document.path }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] text-slate-400 font-mono">{{ document.chars }} chars</span>
+                    <button type="submit" form="doc-form"
+                            class="px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700">
+                        Save
+                    </button>
+                    {% if document.has_undo %}
+                    <form method="POST" action="/workspace/{{ project.slug }}/undo">
+                        <button type="submit"
+                                class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                title="Restore the version before the last change">
+                            Undo
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-hidden">
+                <form id="doc-form" method="POST" action="/workspace/{{ project.slug }}/save" class="h-full">
+                    <textarea name="content" id="doc-textarea"
+                              class="w-full h-full p-5 text-sm font-mono leading-relaxed bg-white border-0 focus:ring-0 focus:outline-none resize-none">{{ document.content }}</textarea>
+                </form>
+            </div>
+
+            <div class="border-t border-slate-200 bg-white">
+                <form method="POST" action="/workspace/{{ project.slug }}/edit" class="p-4 space-y-3"
+                      onsubmit="copySources(this)">
+                    {% if flash_error %}
+                    <div class="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded px-3 py-2">{{ flash_error }}</div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-wider text-slate-400 mb-1">Tell the AI what to change</label>
+                        <textarea name="instruction" id="instruction" rows="3" required
+                                  placeholder="e.g. Expand the Methods section with a sample-size justification, citing the selected PDFs."
+                                  class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">{{ pending_instruction or "" }}</textarea>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label class="text-slate-500">Model:</label>
+                        <select name="model" class="px-2 py-1 border border-slate-300 rounded text-xs bg-white">
+                            {% for alias in models %}
+                            <option value="{{ alias }}" {% if alias == selected_model %}selected{% endif %}>{{ alias }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="text-slate-400 ml-auto" id="source-count-label">no sources attached</span>
+                        <button type="submit"
+                                class="px-4 py-1.5 text-xs font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+                            Apply AI edit
+                        </button>
+                    </div>
+                    <input type="hidden" name="sources_csv" id="sources-csv">
+                </form>
+            </div>
+        </section>
+
+        <!-- ── RIGHT PANE: last AI edit + cost ──────────────────────────── -->
+        <aside class="col-span-3 border-l border-slate-200 bg-white overflow-y-auto">
+            <div class="p-4 border-b border-slate-100">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Last AI edit</p>
+                {% if outcome %}
+                    {% if outcome.error %}
+                    <p class="text-xs text-rose-700">{{ outcome.error }}</p>
+                    {% else %}
+                        <p class="text-xs text-slate-700 mb-2"><strong>Summary:</strong> {{ outcome.summary or "—" }}</p>
+                        <div class="text-[11px] text-slate-500 font-mono">
+                            <code class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">{{ outcome.model }}</code>
+                            · {{ outcome.input_tokens }} in · {{ outcome.output_tokens }} out · ${{ "%.4f"|format(outcome.cost) }}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <p class="text-xs text-slate-500">No AI edits yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="p-4 border-b border-slate-100">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Sources used</p>
+                {% if outcome and outcome.sources_used %}
+                <ul class="space-y-1">
+                    {% for src in outcome.sources_used %}
+                    <li class="text-xs text-slate-700 truncate" title="{{ src }}">
+                        <span class="text-slate-400">PDF·</span>{{ src }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-xs text-slate-500">None attached to the last edit.</p>
+                {% endif %}
+            </div>
+
+            <div class="p-4 border-b border-slate-100">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Cost (30 d)</p>
+                <div class="text-xs text-slate-700 space-y-1">
+                    <p>Calls: <span class="font-mono">{{ telemetry.total_calls }}</span></p>
+                    <p>Cost: <span class="font-mono">${{ "%.4f"|format(telemetry.total_cost) }}</span></p>
+                    <p>Tok in/out: <span class="font-mono">{{ telemetry.total_input_tokens }} / {{ telemetry.total_output_tokens }}</span></p>
+                </div>
+                <a href="/orchestration" class="text-xs text-indigo-600 hover:underline mt-2 inline-block">full dashboard →</a>
+            </div>
+
+            <div class="p-4">
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Recent calls</p>
+                {% if telemetry.recent %}
+                <ul class="space-y-2">
+                    {% for r in telemetry.recent[:4] %}
+                    <li class="text-[11px] text-slate-600 leading-snug">
+                        <code class="bg-slate-50 text-slate-700 px-1 rounded">{{ r.model_alias }}</code>
+                        <span class="text-slate-400">{{ r.timestamp.strftime('%m-%d %H:%M') }}</span><br>
+                        <span class="text-slate-500 truncate block">{{ r.prompt_preview }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-xs text-slate-500">No calls yet.</p>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+const QUICK_PROMPTS = {{ quick_prompts_map | tojson }};
+
+function injectPrompt(slug) {
+    const text = QUICK_PROMPTS[slug];
+    if (!text) return;
+    const el = document.getElementById("instruction");
+    el.value = text;
+    el.focus();
+}
+
+function updateSourceCount() {
+    const checked = document.querySelectorAll(".source-checkbox:checked");
+    const label = document.getElementById("source-count-label");
+    if (checked.length === 0) {
+        label.textContent = "no sources attached";
+    } else {
+        label.textContent = checked.length + " source" + (checked.length === 1 ? "" : "s") + " attached";
+    }
+}
+
+function copySources(form) {
+    const checked = Array.from(document.querySelectorAll(".source-checkbox:checked")).map(c => c.value);
+    form.querySelector("#sources-csv").value = checked.join("\n");
+}
+
+document.addEventListener("change", (e) => {
+    if (e.target.classList.contains("source-checkbox")) updateSourceCount();
+});
+updateSourceCount();
+
+// Cmd/Ctrl+S saves the document.
+document.addEventListener("keydown", (e) => {
+    const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
+    if (isSave) {
+        e.preventDefault();
+        document.getElementById("doc-form").submit();
+    }
+});
+</script>
+</body>
+</html>

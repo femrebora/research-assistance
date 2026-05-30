@@ -34,8 +34,8 @@ def test_originality_tool_is_registered(client):
 def test_help_renders_for_every_field_kind(client):
     """Every Field.help string appears in the rendered /tools/<name> page."""
     for spec in TOOL_SPECS:
-        response = client.get(f"/tools/{spec.name}")
-        assert response.status_code == 200, f"{spec.name} 404"
+        response = client.get(f"/tools/{spec.name}", follow_redirects=True)
+        assert response.status_code == 200, f"{spec.name} returned {response.status_code}"
         body = response.get_data(as_text=True)
         # Unescape HTML entities for comparison
         unescaped_body = html.unescape(body)

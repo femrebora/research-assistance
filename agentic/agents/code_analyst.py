@@ -15,9 +15,9 @@ MAX_TOTAL_PROMPT = 20000  # stay well under shell ARG_MAX
 def _is_important(fname: str) -> bool:
     """Prioritize meaningful source files over Config/tests/data."""
     low = fname.lower()
-    if not low.endswith((".py", ".md", ".rst", ".txt")):
-        return False
-    return not any(x in low for x in ("test_", "conftest", "__pycache__"))
+    if low.endswith((".py", ".md", ".rst", ".txt")):
+        return not any(x in low for x in ("test_", "conftest", "__pycache__"))
+    return False
 
 
 def run_code_analyst(state: dict) -> dict:

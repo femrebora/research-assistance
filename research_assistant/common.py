@@ -90,9 +90,36 @@ CLI_TIMEOUT = int(os.getenv("CLI_TIMEOUT", "600"))
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2.0  # seconds, doubles each retry
 
-THESIS_ROOT = Path(os.getenv("THESIS_ROOT", str(Path.home() / "thesis")))
+_thesis_env = os.getenv("THESIS_ROOT")
+if _thesis_env:
+    THESIS_ROOT = Path(_thesis_env).expanduser().resolve()
+else:
+    THESIS_ROOT = Path.home() / "thesis"
+
 LOG_DIR = THESIS_ROOT / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_log_dir() -> None:
+    """Create LOG_DIR on first use (not at import time).
+
+    Deferring this avoids crashing the entire app at import time when
+    THESIS_ROOT points to an inaccessible path (e.g. a stale hardcoded
+    path in .env).
+    """
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError) as e:
+        import sys
+
+        print(
+            f"Error: Cannot create log directory at {LOG_DIR}\n"
+            f"  Check that THESIS_ROOT in your .env file points to a writable location.\n"
+            f"  Current value: {os.getenv('THESIS_ROOT', '(default)')}\n"
+            f"  Expanded path: {THESIS_ROOT}\n"
+            f"  Detail: {e}",
+            file=sys.stderr,
+        )
+        raise
 
 
 def ask_model(
@@ -281,6 +308,7 @@ def _estimate_cost(alias: str, in_tokens: int | None, out_tokens: int | None) ->
 
 def _log(record: dict) -> None:
     """Append one JSON line to today's log file."""
+    _ensure_log_dir()
     today = datetime.now(tz=UTC).date().isoformat()
     log_file = LOG_DIR / f"{today}.jsonl"
     with log_file.open("a", encoding="utf-8") as f:

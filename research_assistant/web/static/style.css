@@ -23,6 +23,20 @@ pre, code { font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo
 .prose hr { border-color: #e5e7eb; margin: 1rem 0; }
 .prose code.citekey { background: #eef2ff; color: #4338ca; padding: 0.05rem 0.35rem; border-radius: 0.25rem; font-size: 0.85em; }
 
+/* Card hover transitions */
+a.card-stat { transition: border-color 150ms ease, box-shadow 150ms ease; }
+a.card-stat:hover { border-color: #a5b4fc; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+/* Status pill base */
+.status-pill {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.1rem 0.5rem; border-radius: 9999px;
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.025em;
+}
+.status-pill-ok     { background: #ecfdf5; color: #059669; }
+.status-pill-warn   { background: #fef3c7; color: #b45309; }
+.status-pill-muted  { background: #f1f5f9; color: #64748b; }
+
 /* HTMX indicator transitions */
 .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in-out; }
 .htmx-request .htmx-indicator,

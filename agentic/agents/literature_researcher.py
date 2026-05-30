@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
+from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -159,12 +160,9 @@ def _gather_research(topic: str) -> str:
     """Run academic + web searches on different aspects of the topic."""
     sections = []
 
-    # 1. Academic literature via Semantic Scholar (primary) or OpenAlex (fallback)
-    print("  [Research] Semantic Scholar: searching academic papers...", file=sys.stderr)
-    academic = _search_semantic_scholar(topic)
-    if academic.startswith("(Semantic Scholar"):
-        academic = _search_openalex(topic)
-    sections.append(f"## Academic Literature\n\n{academic}\n")
+    # 1. Academic literature via OpenAlex
+    print("  [Research] OpenAlex: searching academic papers...", file=sys.stderr)
+    sections.append(f"## Academic Literature (via OpenAlex)\n\n{_search_openalex(topic)}\n")
 
     # 2-5. Web searches for companies, market, clinical
     web_queries = [
