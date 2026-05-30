@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from quick_ai_score import (
 from agentic.quick_ai_score import (
     _check_burstiness,
     _check_comma_density,

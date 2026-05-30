@@ -80,8 +80,9 @@ def _log(agent: str, msg: str = "") -> None:
     print(f"  [{agent}] {msg}", file=sys.stderr, flush=True)
 
 
-def build_graph() -> StateGraph:
+def build_graph():
     """Build and compile the paper generation state machine."""
+    from langgraph.graph import END, StateGraph
     from langgraph.graph import END, StateGraph  # lazy — langgraph is an optional PaperForge dep
 
     builder = StateGraph(PaperState)
@@ -233,6 +234,7 @@ def load_caches(state: dict) -> dict:
             updates["style_guide"] = style
 
     if is_cache_fresh(TELLS_CACHE_PATH, max_age_days=7):
+        import contextlib
         tells_raw = load_cache(TELLS_CACHE_PATH)
         if tells_raw:
             with contextlib.suppress(json.JSONDecodeError):
