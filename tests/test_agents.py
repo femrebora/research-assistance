@@ -1,6 +1,7 @@
 """Tests for agent functions."""
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -187,18 +188,99 @@ class TestPlagiarismCheck:
 
 
 class TestFigureGen:
+    @patch("agentic.agents.figure_gen.subprocess.run")
     @patch("agentic.agents.figure_gen.call_agent")
-    def test_produces_figures_list(self, mock_call):
+    def test_produces_figures_list(self, mock_call, mock_run):
         mock_call.return_value = {
             "text": "### Figure 1: Pipeline\n```python\nimport matplotlib.pyplot as plt\nplt.figure()\nplt.savefig('fig1.png')\n```",
             "model": "gemini/gemini-2.5-pro",
             "input_tokens": 200, "output_tokens": 100, "cost": 0.001,
         }
+
+        from pathlib import Path
+
         from agentic.agents.figure_gen import run_figure_gen
-        state = {"technical_report": "Pipeline.", "code_path": "/tmp", "agent_calls": []}
-        delta = run_figure_gen(state)
+
+        with tempfile.TemporaryDirectory() as d:
+            # Mock subprocess.run to create the expected PNG file
+            def _mock_run(*args, **kwargs):
+                fig_path = Path(d) / "figures" / "figure_1.png"
+                fig_path.parent.mkdir(parents=True, exist_ok=True)
+                fig_path.write_text("dummy png content")
+                return subprocess.CompletedProcess(
+                    args=[], returncode=0, stdout="", stderr=""
+                )
+
+            mock_run.side_effect = _mock_run
+
+            state = {
+                "technical_report": "Pipeline.",
+                "code_path": d,
+                "output_dir": d,
+                "agent_calls": [],
+            }
+            delta = run_figure_gen(state)
+
         assert len(delta["figures"]) >= 1
         assert "code" in delta["figures"][0]
+        assert delta["figures"][0]["png_path"] is not None
+        assert "figure_1.png" in delta["figures"][0]["png_path"]
+        assert delta["agent_calls"][0]["agent"] == "figure_gen"
+
+    @patch("agentic.agents.figure_gen.subprocess.run")
+    @patch("agentic.agents.figure_gen.call_agent")
+    def test_executes_code_for_each_figure(self, mock_call, mock_run):
+        mock_call.return_value = {
+            "text": (
+                "### Figure 1: Market\n```python\nimport matplotlib.pyplot as plt\nplt.savefig('m.png')\n```\n\n"
+                "### Figure 2: Timeline\n```python\nimport matplotlib.pyplot as plt\nplt.savefig('t.png')\n```"
+            ),
+            "model": "gemini/gemini-2.5-pro",
+            "input_tokens": 300, "output_tokens": 200, "cost": 0.002,
+        }
+
+        from pathlib import Path
+
+        from agentic.agents.figure_gen import run_figure_gen
+
+        call_count = 0
+
+        def _mock_run(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            fig_path = Path(d) / "figures" / f"figure_{call_count}.png"
+            fig_path.parent.mkdir(parents=True, exist_ok=True)
+            fig_path.write_text("dummy")
+            return subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+
+        mock_run.side_effect = _mock_run
+
+        with tempfile.TemporaryDirectory() as d:
+            state = {
+                "technical_report": "Review content.",
+                "code_path": d,
+                "output_dir": d,
+                "agent_calls": [],
+            }
+            delta = run_figure_gen(state)
+
+        assert len(delta["figures"]) == 2
+        assert call_count == 2
+        for fig in delta["figures"]:
+            assert fig["png_path"] is not None
+
+    @patch("agentic.agents.figure_gen.call_agent")
+    def test_handles_missing_output_dir(self, mock_call):
+        mock_call.return_value = {
+            "text": "### Figure 1: Test\n```python\nprint('test')\n```",
+            "model": "gemini/gemini-2.5-pro",
+            "input_tokens": 50, "output_tokens": 25, "cost": 0.0,
+        }
+        from agentic.agents.figure_gen import run_figure_gen
+        delta = run_figure_gen({"agent_calls": []})
+        assert delta["figures"] == []
         assert delta["agent_calls"][0]["agent"] == "figure_gen"
 
 

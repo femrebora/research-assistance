@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 """text_cleanup.py — mechanical post-processing to fix AI-sounding prose.
 
 Applied after Writer and Rewriter produce text. Removes em dashes,
